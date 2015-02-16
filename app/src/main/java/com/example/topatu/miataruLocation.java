@@ -15,6 +15,8 @@ public class miataruLocation extends Location {
 
     public miataruLocation(Location loc) {
         super(loc);
+        UUID = null;
+        Alias = null;
     }
 
     public miataruLocation(String UUID) {
@@ -65,11 +67,10 @@ public class miataruLocation extends Location {
 
         options.position(getLatLng());
 
-        if ( Alias != null && Alias.length() > 0 ) {
-            options.title(Alias);
+        options.title(Alias);
+
+        if ( Alias.compareTo(UUID) != 0 ) {
             options.snippet(UUID);
-        } else {
-            options.title(UUID);
         }
 
         return options;

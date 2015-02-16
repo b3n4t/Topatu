@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/FriendView"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <LinearLayout
+        android:id="@+id/FriendViewButtons"
+        android:orientation="horizontal"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"  >
+
+        <ImageButton
+            android:id="@+id/AddFriend"
+            android:src="@drawable/ic_action_new"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"  />
+
+
+        <ImageButton
+            android:id="@+id/RefreshFriends"
+            android:src="@drawable/ic_action_refresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"  />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_row="1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:orientation="vertical" >
+
+        <LinearLayout
+            android:id="@+id/FriendContainer"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"  >
+
+            <LinearLayout
+                android:id="@+id/FriendList"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"  />
+
+            <GridLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/FriendGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="5"
+                android:useDefaultMargins="true" >
+
+            </GridLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
