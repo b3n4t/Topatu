@@ -21,16 +21,25 @@ public class fragmentFriendView extends ListFragment {
     private static String LOGTAG = "TopatuLog";
     private ArrayList<miataruLocation> friends = new ArrayList<miataruLocation>();
 
+    public static fragmentFriendView  newInstance() {
+        fragmentFriendView f = new fragmentFriendView();
+        //Bundle b = new Bundle();
+        //b.putString("msg", text);
+        //f.setArguments(b);
+
+        return f;
+    }
+
     private void getFakeData(){
         friends = new ArrayList<miataruLocation>();
         miataruLocation loc;
-        loc = new miataruLocation("7c2281c9-d49a-4742-b2d9-c72635f7cbfd","Test");
+        loc = new miataruLocation("BF0160F5-4138-402C-A5F0-DEB1AA1F4216","Demo Device");
         loc.setAccuracy(10);
         loc.setAltitude(20);
         loc.setLongitude(20);
         loc.setTime(0);
         friends.add(loc);
-        loc = new miataruLocation("c8048414-4cc8-4a31-883d-3439d5bb5ba1");
+        loc = new miataruLocation("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
         loc.setAccuracy(100);
         loc.setAltitude(200);
         loc.setLongitude(200);
@@ -41,6 +50,7 @@ public class fragmentFriendView extends ListFragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        Log.d(LOGTAG, "fragmentFriendView - onActivityCreated");
 
         getFakeData();
 
@@ -58,15 +68,6 @@ public class fragmentFriendView extends ListFragment {
     public void onResume() {
         super.onResume();
         Log.d(LOGTAG, "fragmentFriendView - onResume");
-    }
-
-    public static fragmentFriendView  newInstance() {
-        fragmentFriendView f = new fragmentFriendView();
-        //Bundle b = new Bundle();
-        //b.putString("msg", text);
-        //f.setArguments(b);
-
-        return f;
     }
 
     private class FriendArrayAdapter extends ArrayAdapter<miataruLocation> {

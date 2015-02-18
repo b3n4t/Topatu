@@ -14,13 +14,12 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
-//import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-//import android.widget.TextView;
+import android.widget.TextView;
 
 public class MainActivity extends ActionBarActivity implements ActionBar.TabListener {
 
@@ -46,24 +45,37 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.v(LOGTAG, "MainActivity - onCreate");
         super.onCreate(savedInstanceState);
+        Log.v(LOGTAG, "MainActivity - onCreate");
 
+        if ( savedInstanceState != null ) {
+            MyID = savedInstanceState.getString("MyID", null);
+        }
         //
         // On first run there will be no Device ID generaten. Create a new one.
         //
         //PREFS_NAME  = getPreferenceManager().getSharedPreferencesName();
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-        // my_id
-        MyID = settings.getString("my_id", null);
         if (MyID == null) {
-            Log.v(LOGTAG,"No UUID found");
-            MyID = UUID.randomUUID().toString();
-            Log.v(LOGTAG,"New one: "+MyID);
-            //SharedPreferences.Editor editor = settings.edit();
-            //editor.putString("my_id", MyID);
-            //editor.commit();
+            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+            Log.v(LOGTAG, "MainActivity - onCreate - preferences");
+            // my_id
+            MyID = settings.getString("my_id", null);
+            Log.v(LOGTAG, "MainActivity - onCreate - myid");
+            if (MyID == null) {
+                Log.v(LOGTAG,"No UUID found");
+                MyID = UUID.randomUUID().toString();
+                Log.v(LOGTAG,"New one: "+MyID);
+                SharedPreferences.Editor editor = settings.edit();
+                editor.putString("my_id", MyID);
+                editor.apply();
+            } else {
+                Log.v(LOGTAG, "Reading from config UUID: " + MyID);
+            }
+        } else {
+            Log.v(LOGTAG, "App still running UUID: " + MyID);
+
         }
+        Log.v(LOGTAG, "MainActivity - onCreate - middle");
 
         //
         // Load main screen
@@ -75,6 +87,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         //
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
+        actionBar.setDisplayShowTitleEnabled(false);
 
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
@@ -105,8 +118,15 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
                             .setText(mSectionsPagerAdapter.getPageTitle(i))
                             .setTabListener(this));
         }
+        Log.v(LOGTAG, "MainActivity - onCreate - done");
+
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putString("MyID", MyID);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -163,7 +183,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             Fragment f;
             switch(position) {
                 case 0: f = fragmentFriendView.newInstance();break;
-                //case 2: f = fragmentTopatuSettings.newInstance();break;
+                case 1: f = fragmentMap.newInstance();break;
+                case 2: f = fragmentSettings.newInstance();break;
                 default: f = PlaceholderFragment.newInstance(position + 1);break;
             }
 
@@ -194,7 +215,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class PlaceholderFragment extends Fragment {
+    private static class PlaceholderFragment extends Fragment {
         /**
          * The fragment argument representing the section number for this
          * fragment.
@@ -206,7 +227,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
          * number.
          */
         public static PlaceholderFragment newInstance(int sectionNumber) {
-            Log.v(LOGTAG, "PlaceholderFragment - newInstance");
+            Log.v(LOGTAG, "placeholderFragment - newInstance");
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
@@ -214,16 +235,29 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             return fragment;
         }
 
-        public PlaceholderFragment() {
+//        public PlaceholderFragment() {
+//        }
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+            Log.v(LOGTAG, "placeholderFragment - onCreateView");
+            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+            //TextView textView = (TextView) rootView.findViewById(R.id.section_label);
+            //textView.setText("Tab "+this.getArguments().getInt(ARG_SECTION_NUMBER,9));
+            return rootView;
+        }
+/*
+        @Override
+        public void onPause() {
+            super.onPause();
+            Log.v(LOGTAG, "placeholderFragment - onPause");
         }
 
         @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            Log.v(LOGTAG, "PlaceholderFragment - onCreateView");
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            return rootView;
+        public void onResume() {
+            super.onResume();
+            Log.v(LOGTAG, "placeholderFragment - onResume");
         }
+        */
     }
-
 }
