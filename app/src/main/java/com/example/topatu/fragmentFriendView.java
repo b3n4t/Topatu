@@ -62,12 +62,14 @@ public class fragmentFriendView extends ListFragment {
     public void onPause() {
         super.onPause();
         Log.d(LOGTAG, "fragmentFriendView - onPause");
+        persistentFriendList.remove("fragmentFriendView");
     }
 
     @Override
     public void onResume() {
         super.onResume();
         Log.d(LOGTAG, "fragmentFriendView - onResume");
+        persistentFriendList.add("fragmentFriendView");
     }
 
     private class FriendArrayAdapter extends ArrayAdapter<miataruLocation> {

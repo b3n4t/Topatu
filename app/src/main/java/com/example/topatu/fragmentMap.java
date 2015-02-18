@@ -43,11 +43,14 @@ public class fragmentMap extends Fragment {
     public void onPause() {
         super.onPause();
         Log.v(LOGTAG, "fragmentMap - onPause");
+        persistentFriendList.remove("fragmentMap");
     }
 
     @Override
     public void onResume() {
         super.onResume();
         Log.v(LOGTAG, "fragmentMap - onResume");
+        persistentFriendList.add("fragmentMap");
+
     }
 }
