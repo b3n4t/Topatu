@@ -58,19 +58,27 @@ public class miataruFriend implements Parcelable {
     public miataruFriend(Parcel in) {
         UUID = in.readString();
         Alias = in.readString();
-        Latitude = in.readDouble();
-        Longitude = in.readDouble();
-        Accuracy = in.readFloat();
-        TimeStamp = in.readLong();
+
+        hasLocation = in.readInt() != 0;
+        if ( hasLocation ) {
+            Latitude = in.readDouble();
+            Longitude = in.readDouble();
+            Accuracy = in.readFloat();
+            TimeStamp = in.readLong();
+        }
     }
 
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(UUID);
         dest.writeString(Alias);
-        dest.writeDouble(Latitude);
-        dest.writeDouble(Longitude);
-        dest.writeFloat(Accuracy);
-        dest.writeLong(TimeStamp);
+
+        dest.writeInt(hasLocation ? 1 : 0);
+        if ( hasLocation ) {
+            dest.writeDouble(Latitude);
+            dest.writeDouble(Longitude);
+            dest.writeFloat(Accuracy);
+            dest.writeLong(TimeStamp);
+        }
     }
 
     public int describeContents () {
