@@ -1,6 +1,9 @@
 package com.example.topatu;
 
 import android.location.Location;
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -13,6 +16,11 @@ public class miataruLocation extends Location {
     private String UUID;
     private String Alias;
 
+    //
+    //
+    // Different constructors
+    //
+    //
     public miataruLocation(Location loc) {
         super(loc);
         UUID = null;
@@ -34,6 +42,36 @@ public class miataruLocation extends Location {
         super("Miataru");
     }
 
+    //
+    //
+    // Methods to implement parcelable
+    //
+    //
+    /*
+    public miataruLocation(Parcel in) {
+        super(in);
+        UUID = in.readString();
+        Alias = in.readString();
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        supper(dest, flags);
+        dest.writeString(UUID);
+        dest.writeString(Alias);
+    }
+
+    public int describeContents () {
+        return supper();
+    }
+    */
+
+
+    //
+    //
+    // getters and putters
+    //
+    //
     public String getUUID() {
         return UUID;
     }
@@ -50,6 +88,11 @@ public class miataruLocation extends Location {
         this.Alias = Alias;
     }
 
+    //
+    //
+    // Methods to me used with LocationProvider, GoogleMaps and such
+    //
+    //
     LatLng getLatLng () {
         return new LatLng(this.getLatitude(),this.getLongitude());
     }

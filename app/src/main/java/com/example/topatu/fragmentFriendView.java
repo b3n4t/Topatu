@@ -19,7 +19,7 @@ import android.widget.TextView;
 public class fragmentFriendView extends ListFragment {
 
     private static String LOGTAG = "TopatuLog";
-    private ArrayList<miataruLocation> friends = new ArrayList<miataruLocation>();
+    private ArrayList<miataruFriend> friends = new ArrayList<miataruFriend>();
 
     public static fragmentFriendView  newInstance() {
         fragmentFriendView f = new fragmentFriendView();
@@ -31,19 +31,19 @@ public class fragmentFriendView extends ListFragment {
     }
 
     private void getFakeData(){
-        friends = new ArrayList<miataruLocation>();
-        miataruLocation loc;
-        loc = new miataruLocation("BF0160F5-4138-402C-A5F0-DEB1AA1F4216","Demo Device");
-        loc.setAccuracy(10);
-        loc.setAltitude(20);
-        loc.setLongitude(20);
-        loc.setTime(0);
+        friends = new ArrayList<miataruFriend>();
+        miataruFriend loc;
+        //System.currentTimeMillis()
+        loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216","Demo Device");
+        loc.setLocation(1,1,5,System.currentTimeMillis());
         friends.add(loc);
-        loc = new miataruLocation("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
-        loc.setAccuracy(100);
-        loc.setAltitude(200);
-        loc.setLongitude(200);
-        loc.setTime(0);
+
+        loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
+        loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis());
+        friends.add(loc);
+
+        loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13","Test handy");
+        loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis());
         friends.add(loc);
     }
 
@@ -54,7 +54,7 @@ public class fragmentFriendView extends ListFragment {
 
         getFakeData();
 
-        ArrayAdapter<miataruLocation> adapter = new ArrayAdapter<miataruLocation>(getActivity(),android.R.layout.simple_list_item_1, friends);
+        ArrayAdapter<miataruFriend> adapter = new ArrayAdapter<miataruFriend>(getActivity(),android.R.layout.simple_list_item_1, friends);
         setListAdapter(adapter);
     }
 
@@ -72,11 +72,11 @@ public class fragmentFriendView extends ListFragment {
         persistentFriendList.add("fragmentFriendView");
     }
 
-    private class FriendArrayAdapter extends ArrayAdapter<miataruLocation> {
+    private class FriendArrayAdapter extends ArrayAdapter<miataruFriend> {
         private final Context context;
-        private final miataruLocation[] values;
+        private final miataruFriend[] values;
 
-        public FriendArrayAdapter (Context context, miataruLocation[] values) {
+        public FriendArrayAdapter (Context context, miataruFriend[] values) {
             super(context, R.layout.friend_row_layout, values);
             this.context = context;
             this.values = values;
