@@ -117,15 +117,43 @@ public class miataruFriend implements Parcelable {
         this.Alias = Alias;
     }
 
+    public boolean hasLocation () {
+        return hasLocation;
+    }
+
+    public double getLatitude () { return Latitude; }
+
+    public double getLongitude () { return Longitude; }
+
+    public float getAccuracy () { return Accuracy; }
+
+    public long getTimeStamp () { return TimeStamp; }
+
+    public String getUpdateTime () {
+        long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
+
+        if ( timediff < 0 ) { return null; }
+
+        String answer;
+        if ( timediff > 60*60*24*2 ) {
+            timediff = timediff / (60*60*24);
+            answer = timediff+" d";
+        } else if ( timediff > 60*60*2 ) {
+            timediff = timediff / (60*60);
+            answer = timediff+" h";
+        } else if ( timediff > 60*2 ) {
+            timediff = timediff / 60;
+            answer = timediff+" m";
+        } else {
+            answer = timediff+" s";
+        }
+        return answer;
+    }
     //
     //
     // Methods to me used with LocationProvider, GoogleMaps and such
     //
     //
-    public boolean hasLocation () {
-        return hasLocation;
-    }
-
     public void setLocation (double lat, double lon, float accu) {
         this.hasLocation = true;
         this.Latitude = lat;

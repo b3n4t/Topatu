@@ -1,25 +1,24 @@
 package com.example.topatu;
 
-import java.util.Locale;
-import java.util.UUID;
-
 import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v7.app.ActionBarActivity;
-import android.support.v7.app.ActionBar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.os.Bundle;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.ViewPager;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
+
+import java.util.Locale;
+import java.util.UUID;
 
 public class MainActivity extends ActionBarActivity implements ActionBar.TabListener {
 
@@ -57,10 +56,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         //PREFS_NAME  = getPreferenceManager().getSharedPreferencesName();
         if (MyID == null) {
             SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-            Log.v(LOGTAG, "MainActivity - onCreate - preferences");
             // my_id
             MyID = settings.getString("my_id", null);
-            Log.v(LOGTAG, "MainActivity - onCreate - myid");
             if (MyID == null) {
                 Log.v(LOGTAG,"No UUID found");
                 MyID = UUID.randomUUID().toString();
@@ -75,7 +72,6 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             Log.v(LOGTAG, "App still running UUID: " + MyID);
 
         }
-        Log.v(LOGTAG, "MainActivity - onCreate - middle");
 
         //
         // Load main screen
@@ -118,8 +114,6 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
                             .setText(mSectionsPagerAdapter.getPageTitle(i))
                             .setTabListener(this));
         }
-        Log.v(LOGTAG, "MainActivity - onCreate - done");
-
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.example.topatu;
 
 import android.util.Log;
+
 import java.util.ArrayList;
 
 /**
@@ -19,6 +20,6 @@ public class persistentFriendList {
 
     static public void remove (String ID) {
         users.remove(ID);
-        Log.v("TopatuLog","Added "+ID+", "+users.size()+" in total");
+        Log.v("TopatuLog","Removed "+ID+", "+users.size()+" in total");
     }
 }
