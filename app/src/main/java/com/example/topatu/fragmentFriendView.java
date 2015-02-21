@@ -23,10 +23,12 @@ import java.util.ArrayList;
 /**
  * Created by Ixa on 09/02/2015.
  */
-public class fragmentFriendView extends ListFragment implements AdapterView.OnItemLongClickListener {
+public class fragmentFriendView extends ListFragment implements persistentFriends.friendEvents, AdapterView.OnItemLongClickListener {
 
     private static String LOGTAG = "TopatuLog";
-    private ArrayList<miataruFriend> friends = new ArrayList<miataruFriend>();
+    private ArrayList<miataruFriend> friends = null;
+    private FriendArrayAdapter adapter = null;
+    private persistentFriends friendData = null;
 
     public static fragmentFriendView  newInstance() {
         fragmentFriendView f = new fragmentFriendView();
@@ -63,10 +65,18 @@ public class fragmentFriendView extends ListFragment implements AdapterView.OnIt
         super.onActivityCreated(savedInstanceState);
         Log.d(LOGTAG, "fragmentFriendView - onActivityCreated");
 
-        getFakeData();
+        //friendData = new persistentFriends();
+        //friendData.registerCallback(this);
+        //friends = friendData.getFriends();
+
+        friends = persistentFriends.getFriends();
+
+        Log.v(LOGTAG,"fragmentFriendView - Number of friends "+friends.size());
+
+        //getFakeData();
 
         //ArrayAdapter<miataruFriend> adapter = new ArrayAdapter<miataruFriend>(getActivity(),android.R.layout.simple_list_item_1, friends);
-        FriendArrayAdapter adapter = new FriendArrayAdapter((Context)getActivity(),friends);
+        adapter = new FriendArrayAdapter((Context)getActivity(),friends);
         setListAdapter(adapter);
 
         getListView().setOnItemLongClickListener(this);
@@ -132,6 +142,17 @@ public class fragmentFriendView extends ListFragment implements AdapterView.OnIt
 
     //
     //
+    // Callback to refresh friend list
+    //
+    //
+    @Override
+    public void refreshFriendInfo () {
+        adapter.notifyDataSetChanged();
+    }
+    @Override
+    public void refreshFriendLocation () {}
+    //
+    //
     // onPause and onResume
     //
     //
@@ -139,14 +160,17 @@ public class fragmentFriendView extends ListFragment implements AdapterView.OnIt
     public void onPause() {
         super.onPause();
         Log.d(LOGTAG, "fragmentFriendView - onPause");
-        persistentFriendList.remove("fragmentFriendView");
+        friendData.close();
+        friendData = null;
     }
 
     @Override
     public void onResume() {
         super.onResume();
         Log.d(LOGTAG, "fragmentFriendView - onResume");
-        persistentFriendList.add("fragmentFriendView");
+        //if ( friendData == null ) {
+        friendData = new persistentFriends();
+        friendData.registerCallback(this);
     }
 
     //

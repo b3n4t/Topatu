@@ -36,21 +36,18 @@ public class fragmentMap extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        Log.v(LOGTAG, "fragmentMap - onActivityCreated");
+        //Log.v(LOGTAG, "fragmentMap - onActivityCreated");
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        Log.v(LOGTAG, "fragmentMap - onPause");
-        persistentFriendList.remove("fragmentMap");
+        //Log.v(LOGTAG, "fragmentMap - onPause");
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.v(LOGTAG, "fragmentMap - onResume");
-        persistentFriendList.add("fragmentMap");
-
+        //Log.v(LOGTAG, "fragmentMap - onResume");
     }
 }

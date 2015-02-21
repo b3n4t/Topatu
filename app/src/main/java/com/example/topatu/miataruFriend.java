@@ -13,6 +13,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
  */
 public class miataruFriend implements Parcelable {
     private String UUID;
+    private String Server;
     private String Alias = null;
     private boolean hasLocation = false;
     private double Latitude;
@@ -105,12 +106,18 @@ public class miataruFriend implements Parcelable {
         return UUID;
     }
 
+    public String getServer () { return Server; }
+
     public String getAlias() {
         return Alias;
     }
 
     public void setUUID(String UUID) {
         this.UUID = UUID;
+    }
+
+    public void setServer(String Server) {
+        this.Server = Server;
     }
 
     public void setAlias(String Alias) {

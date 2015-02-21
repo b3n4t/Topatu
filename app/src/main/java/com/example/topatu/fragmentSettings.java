@@ -26,7 +26,7 @@ public class fragmentSettings extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        Log.v(LOGTAG, "fragmentSettings - onCreateView");
+        //Log.v(LOGTAG, "fragmentSettings - onCreateView");
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         TextView textView = (TextView) rootView.findViewById(R.id.section_label);
         textView.setText("Settings goes here");
@@ -36,18 +36,18 @@ public class fragmentSettings extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        Log.v(LOGTAG, "fragmentSettings - onActivityCreated");
+        //Log.v(LOGTAG, "fragmentSettings - onActivityCreated");
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        Log.v(LOGTAG, "fragmentSettings - onPause");
+        //Log.v(LOGTAG, "fragmentSettings - onPause");
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.v(LOGTAG, "fragmentSettings - onResume");
+        //Log.v(LOGTAG, "fragmentSettings - onResume");
     }
 }

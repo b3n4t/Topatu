@@ -1,5 +1,6 @@
 package com.example.topatu;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -41,10 +42,12 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     private String PREFS_NAME = null;
     private static String MyID = null;
 
+    private static Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        this.context = getApplicationContext();
         Log.v(LOGTAG, "MainActivity - onCreate");
 
         if ( savedInstanceState != null ) {
@@ -121,7 +124,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         super.onSaveInstanceState(state);
         state.putString("MyID", MyID);
     }
-
+/*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -143,7 +146,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
 
         return super.onOptionsItemSelected(item);
     }
-
+*/
     @Override
     public void onTabSelected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
         // When the given tab is selected, switch to the corresponding page in
@@ -253,5 +256,9 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             Log.v(LOGTAG, "placeholderFragment - onResume");
         }
         */
+    }
+
+    public static Context getAppContext() {
+        return MainActivity.context;
     }
 }
