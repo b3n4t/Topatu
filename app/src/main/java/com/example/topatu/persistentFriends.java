@@ -2,12 +2,27 @@ package com.example.topatu;
 
 import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
+import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.protocol.HTTP;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 /**
@@ -16,7 +31,8 @@ import java.util.ArrayList;
 
 
 public class persistentFriends {
-    private static int activeinstances = 0;
+    private final static String LOGTAG = "TopatuLog";
+    private int activeinstances = 0;
     private static storageFriends dbHelper = null;
     private static SQLiteDatabase database = null;
     private static ArrayList<miataruFriend> friendList = new ArrayList<miataruFriend>();
@@ -28,38 +44,51 @@ public class persistentFriends {
     private static final String SAVESTATE_NUM = "friendStateCount";
     private static final String SAVESTATE_FRIENDS = "friendStateFriendList";
 
-    public void persistentFriends() throws Exception {
+    public persistentFriends() {
+        this.defaultConfig();
+    }
+
+    public persistentFriends(friendEvents callback) {
+        this.defaultConfig();
+        this.registerCallback(callback);
+    }
+
+    private void defaultConfig() {
         myCallback = null;
 
-        activeinstances = 8 / 0;
+        Log.v(LOGTAG, "persistentFriends - new ");
 
-        Log.v("TopatuLog", "Starting new persistentFriends ("+(activeinstances+1)+" in total");
+        Log.v(LOGTAG, "persistentFriends - "+ (Integer.toString(this.activeinstances + 1))+" until now");
 
         // If we are the first ones, open the DB
         if (activeinstances == 0 && dbHelper != null) {
-            Log.e("TopatuLog", "First Friends object, but DB is already configured!");
-            throw new Exception("Internal error - First Friends object, but DB is already configured");
+            Log.e(LOGTAG, "First Friends object, but DB is already configured!");
+            //throw new Exception("Internal error - Fit Friends object, but DB is already configured");
+            return;
         }
 
+        Log.v(LOGTAG, "persistentFriends - all good so far");
+
         if (activeinstances == 0) {
+            Log.v(LOGTAG,"fragmentFriendView - still good");
+
             DBOpen();
 
-            miataruFriend loc;
-            loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-            loc.setLocation(1,1,5,System.currentTimeMillis());
-            friendList.clear();
-            friendList.add(loc);
 
+            friendList.clear();
+            //miataruFriend loc;
+            //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
+            //loc.setLocation(1, 1, 5, System.currentTimeMillis());
+            //friendList.add(loc);
+
+            Log.v(LOGTAG,"fragmentFriendView - Starting async job to read from DB");
             new loadFromDB().execute();
         }
 
+        Log.v("TopatuLog", "persistentFriends - this is not reached");
+
         activeinstances++;
         clean = false;
-    }
-
-    public void persistentFriends(friendEvents callback) throws Exception {
-        this.persistentFriends();
-        this.registerCallback(callback);
     }
 
     protected void finalize() {
@@ -76,6 +105,10 @@ public class persistentFriends {
             if (callbacks.size() == 0) {
                 // This was the last one waiting for any feedback
                 // Stop any pending HTTP async tasks
+                if ( 0 > 1 ) {
+                    // we don't know what we are doing here....
+                    return;
+                }
             }
         }
 
@@ -106,12 +139,14 @@ public class persistentFriends {
     }
 
     public static void onRestoreInstanceState(Bundle savedInstanceState) {
+        /*
         if (activeinstances != 0) {
             Log.v("TopatuLog", "ERROR ERROR ERROR ERROR ERROR ERROR ERROR");
             Log.v("TopatuLog", "    Something I didn't understand correctly");
             Log.v("TopatuLog", "ERROR ERROR ERROR ERROR ERROR ERROR ERROR");
             return;
         }
+        */
         if (savedInstanceState != null) {
             int numFriends = savedInstanceState.getInt(SAVESTATE_NUM, 0);
             if (numFriends > 0 && savedInstanceState.containsKey(SAVESTATE_FRIENDS)) {
@@ -173,8 +208,11 @@ public class persistentFriends {
     //
     private void DBOpen() {
         if (activeinstances == 0) {
+            Log.v(LOGTAG,"Starting new DB instance");
             dbHelper = new storageFriends(MainActivity.getAppContext());
+            Log.v(LOGTAG,"opening a writable DB");
             database = dbHelper.getWritableDatabase();
+            Log.v(LOGTAG,"DB open");
         }
     }
 
@@ -260,6 +298,8 @@ public class persistentFriends {
 
         @Override
         protected void onPostExecute(ArrayList<miataruFriend> friendsFromDB) {
+            Log.v(LOGTAG,"persistentFriends - Friends loaded from DB");
+            Log.v(LOGTAG,"persistentFriends - " + friendsFromDB.size() + " friends");
             tasks.remove(this);
             boolean newData = false;
             // Load the friend list to internal variable
@@ -286,6 +326,131 @@ public class persistentFriends {
                 }
             }
         }
+    }
+
+    //
+    //
+    // Asynchronus tasks for Miataru operations
+    //
+    //
+    private class MiataruGet extends AsyncTask<String,Void,String> {
+        @Override
+        protected String doInBackground(String... deviceids) {
+            //String URL = new String("https://"+zerbitzaria+"/v"+bertsioa+"/GetLocation");
+            String URL = new String("https://service.miataru.com/v1/GetLocation");
+            HttpClient httpclient = new DefaultHttpClient();
+            HttpPost request = new HttpPost(URL);
+            HttpResponse response;
+            InputStream buffer;
+            String wholeanswer;
+            StringEntity postdata;
+            JSONObject jsonrequest;
+
+            try {
+                jsonrequest = new JSONObject();
+                JSONArray devicelist = new JSONArray();
+                for (int i=0;i<deviceids.length;i++) {
+                    JSONObject device = new JSONObject();
+                    device.accumulate("Device", deviceids[i]);
+                    devicelist.put(device);
+                }
+                jsonrequest.accumulate("MiataruGetLocation", devicelist );
+                //Log.d(LOGTAG,"Request: "+jsonrequest.toString());
+            } catch(Exception e) {
+                //Log.d(LOGTAG,e.toString());
+                return "{ \"error\": \"Error creating JSON request - "+e.toString()+"\" }";
+            }
+
+            try {
+                postdata = new StringEntity(jsonrequest.toString(),"UTF-8");
+            } catch(Exception e) {
+                //Log.d(LOGTAG,e.toString());
+                return "{ \"error\": \"String processing error - "+e.toString()+"\" }";
+            }
+            postdata.setContentType("application/json;charset=UTF-8");
+            postdata.setContentEncoding(new BasicHeader(HTTP.CONTENT_TYPE, "application/json;charset=UTF-8"));
+            //entity = json_string;
+            request.setEntity(postdata);
+
+            try {
+                response = httpclient.execute(request);
+                HttpEntity httpEntity = response.getEntity();
+                buffer = httpEntity.getContent();
+            } catch(Exception e) {
+                //Log.d(LOGTAG,e.toString());
+                return "{ \"error\":\"HTTP error - " + e.toString() + "\"}";
+            }
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(buffer, "iso-8859-1"), 8);
+                StringBuilder sb = new StringBuilder();
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line + "\n");
+                }
+                buffer.close();
+                wholeanswer = sb.toString();
+
+            } catch (Exception e) {
+                //Log.d(LOGTAG,e.toString());
+                return "{ \"error\":\"Error reading HTTP answer - " + e.toString() + "\"}";
+            }
+            return wholeanswer;
+
+        }
+        @Override
+        protected void onPostExecute(String result) {
+            Log.d("MiataruLog",result);
+            //dbgoutput(result);
+            //dbgoutput("{\"MiataruGetLocation\":[{\"Device\":\"BF0160F5-4138-402C-A5F0-DEB1AA1F4216\"}]}");
+            // Process the JSPON answer
+            JSONObject answer;
+            JSONArray list;
+            try {
+                answer = new JSONObject(result);
+            } catch (Exception e) {
+                Log.d(LOGTAG,"No JSON data could be found on the answer");
+            }
+            try {
+                answer = new JSONObject(result);
+                list = answer.getJSONArray("MiataruLocation");
+            } catch (Exception e) {
+                Log.d(LOGTAG,"No Miataru answer");
+                return;
+            }
+            if ( list != null ) {
+                for (int i=0;i<list.length();i++) {
+                    String ID = null;
+                    try {
+                        JSONObject devicepos = list.getJSONObject(i);
+                        Location location = new Location("Miataru");
+
+                        ID = devicepos.getString("Device");
+
+                        location.setAltitude(devicepos.getDouble("Latitude"));
+                        location.setLongitude(devicepos.getDouble("Longitude"));
+                        location.setAccuracy((float)devicepos.getDouble("HorizontalAccuracy"));
+                        location.setTime(devicepos.getLong("Timestamp"));
+                        //devicelocations.put(ID, location);
+                        Log.d(LOGTAG,"Saving "+ID);
+                    } catch (Exception e) {
+                        if ( ID != null ) {
+                            Log.d(LOGTAG, "Error while reading info device location ("+ID+") - "+e.toString());
+                        } else {
+                            Log.d(LOGTAG, "Error while reading info device location - "+e.toString());
+                        }
+                    }
+                }
+            } else {
+                Log.d(LOGTAG,"Could not get location array");
+            }
+
+            //devicelocations.
+        }
+        @Override
+        protected void onPreExecute() {}
+
+        @Override
+        protected void onProgressUpdate(Void... values) {}
     }
 
     //

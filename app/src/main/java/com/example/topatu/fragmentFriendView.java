@@ -67,7 +67,7 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
 
         //friendData = new persistentFriends();
         //friendData.registerCallback(this);
-        //friends = friendData.getFriends();
+        //friends = persistentFriends.getFriends();
 
         friends = persistentFriends.getFriends();
 
@@ -169,8 +169,8 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         super.onResume();
         Log.d(LOGTAG, "fragmentFriendView - onResume");
         //if ( friendData == null ) {
-        friendData = new persistentFriends();
-        friendData.registerCallback(this);
+        friendData = new persistentFriends(this);
+        //friendData.registerCallback(this);
     }
 
     //

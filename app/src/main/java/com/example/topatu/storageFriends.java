@@ -29,7 +29,7 @@ public class storageFriends extends SQLiteOpenHelper {
             + COLUMN_ID + " integer primary key autoincrement, "
             + COLUMN_UUID + " text not null, "
             + COLUMN_ALIAS + " text, "
-            + COLUMN_SERVER + " text;";
+            + COLUMN_SERVER + " text );";
 
     public storageFriends(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
