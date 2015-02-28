@@ -35,31 +35,6 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         return f;
     }
 
-    private void getFakeData(){
-        friends = new ArrayList<miataruFriend>();
-        miataruFriend loc;
-
-        loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(getActivity()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-        loc.setLocation(1,1,5,System.currentTimeMillis());
-        friends.add(loc);
-
-        loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216","Demo Miataru device");
-        loc.setLocation(1,1,5,System.currentTimeMillis() - 60*60*3*1000);
-        friends.add(loc);
-
-        loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
-        loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60*3*1000 );
-        friends.add(loc);
-
-        loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13","Test handy");
-        loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis() - 93*1000);
-        friends.add(loc);
-
-        loc = new miataruFriend("99999999-9999-9999-9999-999999999999",Long.toString(System.currentTimeMillis()));
-        loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis() - 10*1000);
-        friends.add(loc);
-    }
-
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -126,9 +101,10 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
                         editDialog.show();
                         break;
                     case 2:
-                        //Log.v(LOGTAG, "Action: Delete ("+selectedFriend.getAlias()+")");
-                        Toast toast = Toast.makeText(getActivity(), "Item deleted "+selectedFriend.getUUID(), Toast.LENGTH_SHORT);
-                        toast.show();
+                        Log.v(LOGTAG, "Action: Delete ("+selectedFriend.getAlias()+")");
+                        friendData.removeFriend(selectedFriend);
+                        //Toast toast = Toast.makeText(getActivity(), "Item deleted "+selectedFriend.getUUID(), Toast.LENGTH_SHORT);
+                        //toast.show();
                         break;
                     default: Log.v(LOGTAG, "Action: Wrong selection");break;
                 }

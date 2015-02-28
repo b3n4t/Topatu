@@ -41,6 +41,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     private static String LOGTAG = "TopatuLog";
     private String PREFS_NAME = null;
     private static String MyID = null;
+    private persistentFriends friends;
 
     private static Context context;
 
@@ -75,6 +76,18 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             Log.v(LOGTAG, "App still running UUID: " + MyID);
 
         }
+
+        //
+        // Create an instance of persistentFriends
+        //
+        friends = new persistentFriends();
+        if ( savedInstanceState != null ) {
+            Log.v(LOGTAG, "MainActivity - trying to restore friendlist");
+            Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
+            persistentFriends.onRestoreInstanceState(savedInstanceState);
+            Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
+        }
+
 
         //
         // Load main screen
@@ -119,11 +132,25 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         }
     }
 
+    //
+    //
+    // save persistentFriends
+    //
+    //
     @Override
-    protected void onSaveInstanceState(Bundle state) {
-        super.onSaveInstanceState(state);
-        state.putString("MyID", MyID);
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information");
+        persistentFriends.onSaveInstanceState(savedInstanceState);
     }
+
+    @Override
+    protected void onDestroy () {
+        super.onDestroy();
+        friends.close();
+        friends = null;
+    }
+
+
 /*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -208,6 +235,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             return null;
         }
     }
+
+
 
     /**
      * A placeholder fragment containing a simple view.

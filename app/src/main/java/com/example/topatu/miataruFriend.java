@@ -3,6 +3,7 @@ package com.example.topatu;
 import android.location.Location;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -56,7 +57,8 @@ public class miataruFriend implements Parcelable {
     // Methods to implement parcelable
     //
     //
-    public miataruFriend(Parcel in) {
+    protected  miataruFriend(Parcel in) {
+        Log.v("TopatuLog","miataruFriend - creating from PARCEL");
         UUID = in.readString();
         Alias = in.readString();
 
@@ -69,7 +71,10 @@ public class miataruFriend implements Parcelable {
         }
     }
 
+    @Override
     public void writeToParcel(Parcel dest, int flags) {
+        Log.v("TopatuLog", "miataruFriend - writing to PARCEL");
+
         dest.writeString(UUID);
         dest.writeString(Alias);
 
@@ -82,11 +87,13 @@ public class miataruFriend implements Parcelable {
         }
     }
 
-    public int describeContents () {
+    @Override
+    public int describeContents() {
         return 0;
     }
 
-    public static final Parcelable.Creator CREATOR = new Parcelable.Creator() {
+
+    public static final Parcelable.Creator<miataruFriend> CREATOR = new Parcelable.Creator<miataruFriend>() {
         public miataruFriend createFromParcel(Parcel in) {
             return new miataruFriend(in);
         }
