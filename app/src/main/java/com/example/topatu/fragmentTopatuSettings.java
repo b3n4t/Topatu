@@ -11,7 +11,7 @@ public class fragmentTopatuSettings extends PreferenceFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Load the preferences from an XML resource
-        addPreferencesFromResource(R.xml.topatu_settings);
+        addPreferencesFromResource(R.xml.topatu_settings_old);
     }
 
     public static fragmentTopatuSettings  newInstance() {

@@ -1,36 +1,27 @@
 package com.example.topatu;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
-import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.protocol.HTTP;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 /**
  * Created by Tricky on 21/02/2015.
  */
 
 
-public class persistentFriends {
+public class persistentFriends extends BroadcastReceiver {
     private final static String LOGTAG = "TopatuLog";
     private int activeinstances = 0;
     private static storageFriends dbHelper = null;
@@ -41,6 +32,10 @@ public class persistentFriends {
     private static ArrayList<Object> instances = new ArrayList<Object>();
     private friendEvents myCallback;
     private boolean clean = true;
+
+    private static AlarmManager alarmMgr;
+    private static PendingIntent alarmIntent;
+
 
     private static final String SAVESTATE_NUM = "friendStateCount";
     private static final String SAVESTATE_FRIENDS = "friendStateFriendList";
@@ -57,9 +52,12 @@ public class persistentFriends {
     private void defaultConfig() {
         myCallback = null;
 
-        Log.v(LOGTAG, "persistentFriends - new ");
-
-        Log.v(LOGTAG, "persistentFriends - "+ (instances.size() + 1)+" until now");
+        if (MainActivity.Debug > 3) {
+            Log.v(LOGTAG, "persistentFriends - new ");
+        }
+        if (MainActivity.Debug > 3) {
+            Log.v(LOGTAG, "persistentFriends - " + (instances.size() + 1) + " until now");
+        }
 
         // If we are the first ones, open the DB
         if (instances.size() == 0 && dbHelper != null) {
@@ -73,26 +71,19 @@ public class persistentFriends {
 
             friendList.clear();
             miataruFriend loc;
-            loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-            loc.setLocation(1, 1, 5, System.currentTimeMillis());
 
-            //Bundle saco = new Bundle();
-            //Log.v(LOGTAG,"PARCELABLE - Saving "+loc.getAlias());
-            //saco.putParcelable("Testing",loc);
-            //loc = null;
-            //loc = saco.getParcelable("Testing");
-            //Log.v(LOGTAG,"PARCELABLE - Restored "+loc.getAlias());
+            //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
+            //loc.setLocation(1, 1, 5, System.currentTimeMillis());
 
-            friendList.add(loc);
+            //friendList.add(loc);
+
+            // trigger a reload from DB
+            new loadFromDB().execute();
         }
 
         //activeinstances++;
         instances.add(this);
         clean = false;
-
-        // trigger a reload from DB
-        new loadFromDB().execute();
-
     }
 
     protected void finalize() {
@@ -102,6 +93,9 @@ public class persistentFriends {
     }
 
     public void close() {
+        if (MainActivity.Debug > 3) {
+            Log.v(LOGTAG, "Instance closed. Current status: " + instances.size() + " instances, " + callbacks.size() + " callbacks");
+        }
         if (myCallback != null) {
             callbacks.remove(myCallback);
             myCallback = null;
@@ -109,10 +103,7 @@ public class persistentFriends {
             if (callbacks.size() == 0) {
                 // This was the last one waiting for any feedback
                 // Stop any pending HTTP async tasks
-                if ( 0 > 1 ) {
-                    // we don't know what we are doing here....
-                    return;
-                }
+                disableFriendPullJob();
             }
         }
 
@@ -122,54 +113,113 @@ public class persistentFriends {
 
         // If this was the last active object, close the DB
         if (instances.size() == 0) {
-            Log.v(LOGTAG,"persistentFriends - Last object destroyed. Closing DB and stoping everything");
+            if (MainActivity.Debug > 0) {
+                Log.v(LOGTAG, "persistentFriends - Last object destroyed. Closing DB and stopping everything");
+            }
             DBClose();
         }
     }
 
-    public void registerCallback (friendEvents callback) {
-        myCallback = callback;
-        callbacks.add(myCallback);
+    public void registerCallback(friendEvents callback) {
+        if (myCallback != null) {
+            callbacks.remove(myCallback);
+            myCallback = callback;
+            callbacks.add(myCallback);
+        } else {
+            myCallback = callback;
+            callbacks.add(myCallback);
 
-        if (callbacks.size() == 1) {
-            // This is the firs one interested in life data.
-            // Start HTTP async tasks
+            if (callbacks.size() == 1) {
+                // This is the firs one interested in life data.
+                // Start HTTP async tasks
+                enableFriendPullJob();
+            }
         }
     }
 
     public static void onSaveInstanceState(Bundle savedInstanceState) {
-        savedInstanceState.putInt(SAVESTATE_NUM, friendList.size());
-        if (friendList.size() > 0) {
-            savedInstanceState.putParcelableArrayList(SAVESTATE_FRIENDS, friendList);
+        if (savedInstanceState != null) {
+            savedInstanceState.putInt(SAVESTATE_NUM, friendList.size());
+            if (friendList.size() > 0) {
+                savedInstanceState.putParcelableArrayList(SAVESTATE_FRIENDS, friendList);
+            }
         }
     }
 
     public static void onRestoreInstanceState(Bundle savedInstanceState) {
-        /*
-        if (activeinstances != 0) {
-            Log.v("TopatuLog", "ERROR ERROR ERROR ERROR ERROR ERROR ERROR");
-            Log.v("TopatuLog", "    Something I didn't understand correctly");
-            Log.v("TopatuLog", "ERROR ERROR ERROR ERROR ERROR ERROR ERROR");
-            return;
-        }
-        */
         if (savedInstanceState != null) {
             int numFriends = savedInstanceState.getInt(SAVESTATE_NUM, 0);
-            Log.v(LOGTAG,"persistentFriends - onRestoreInstanceState: " + numFriends + " friends in save bundle");
+            if (MainActivity.Debug > 3) {
+                Log.v(LOGTAG, "persistentFriends - onRestoreInstanceState: " + numFriends + " friends in save bundle");
+            }
             if (numFriends > 0 && savedInstanceState.containsKey(SAVESTATE_FRIENDS)) {
-                friendList.clear();
+                if (MainActivity.Debug > 3) {
+                    Log.v(LOGTAG, "persistentFriends - onRestoreInstanceState: " + friendList.size() + " friends original list");
+                }
+                //friendList.clear();
                 ArrayList<miataruFriend> friendsFromSave = savedInstanceState.getParcelableArrayList(SAVESTATE_FRIENDS);
-                Log.v(LOGTAG, "persistentFriends - onRestoreInstanceState: " + friendsFromSave.size() + " objects read");
+                if (MainActivity.Debug > 3) {
+                    Log.v(LOGTAG, "persistentFriends - onRestoreInstanceState: " + friendsFromSave.size() + " objects read");
+                }
 
-                friendList.addAll(friendsFromSave);
+                mergeLists(friendList, friendsFromSave);
                 friendsFromSave = null;
             } else {
-                Log.v(LOGTAG,"persistentFriends - onRestoreInstanceState: could not find any object");
+                if (MainActivity.Debug > 3) {
+                    Log.v(LOGTAG, "persistentFriends - onRestoreInstanceState: could not find any object");
+                }
             }
         }
 
     }
 
+    private void enableFriendPullJob() {
+        if (MainActivity.Debug > 2) {
+            Log.v(LOGTAG, "persistentFriends - enableFriendPullJob");
+        }
+
+        int interval = 60;
+        // If wifi or power is available set a fast refresh
+        // else try to not use a lot of battery/bandwidth
+        if (true) {
+            interval = 15;
+        } else {
+            interval = 60;
+        }
+
+        interval = 60;
+
+        if (alarmMgr == null) {
+            //alarmMgr = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
+            alarmMgr = (AlarmManager) MainActivity.getAppContext().getSystemService(Context.ALARM_SERVICE);
+        }
+        if (alarmIntent == null) {
+            Intent intent = new Intent(MainActivity.getAppContext(), receiverPullFriendData.class);
+            alarmIntent = PendingIntent.getBroadcast(MainActivity.getAppContext(), 0, intent, 0);
+        }
+
+        Calendar cal = Calendar.getInstance();
+
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, interval * 1000, alarmIntent);
+        //alarmMgr.set(AlarmManager.ELAPSED_REALTIME,
+        // SystemClock.elapsedRealtime() +
+        // interval * 1000, alarmIntent);
+
+    }
+
+    private void disableFriendPullJob() {
+        if (MainActivity.Debug > 2) {
+            Log.v(LOGTAG, "persistentFriends - disableFriendPullJob");
+        }
+        alarmMgr.cancel(alarmIntent);
+    }
+
+
+    //
+    //
+    // General methods to add remove friends from DB
+    //
+    //
     public void addFriend(String UUID) {
         this.addFriend(UUID, null);
     }
@@ -203,6 +253,7 @@ public class persistentFriends {
             new deleteFromDB().execute(friend);
         }
     }
+
     public void removeFriend(String UUID) {
         boolean found = false;
         miataruFriend friend = null;
@@ -235,11 +286,17 @@ public class persistentFriends {
     //
     private void DBOpen() {
         if (instances.size() == 0) {
-            Log.v(LOGTAG,"Starting new DB instance");
+            if (MainActivity.Debug > 10) {
+                Log.v(LOGTAG, "Starting new DB instance");
+            }
             dbHelper = new storageFriends(MainActivity.getAppContext());
-            Log.v(LOGTAG, "opening a writable DB");
+            if (MainActivity.Debug > 10) {
+                Log.v(LOGTAG, "opening a writable DB");
+            }
             database = dbHelper.getWritableDatabase();
-            Log.v(LOGTAG,"DB open");
+            if (MainActivity.Debug > 10) {
+                Log.v(LOGTAG, "DB open");
+            }
         }
     }
 
@@ -282,8 +339,14 @@ public class persistentFriends {
     // Helper function to transfer the friends from one list to the other
     //
     //
-    private boolean mergeLists(ArrayList<miataruFriend> oldFriends, ArrayList<miataruFriend> newFriends) {
-        if ( newFriends == null || oldFriends == null ) { return false; }
+    private static boolean mergeLists(ArrayList<miataruFriend> oldFriends, ArrayList<miataruFriend> newFriends) {
+        return mergeLists(oldFriends, newFriends, true);
+    }
+
+    private static boolean mergeLists(ArrayList<miataruFriend> oldFriends, ArrayList<miataruFriend> newFriends, boolean addOnly) {
+        if (newFriends == null || oldFriends == null) {
+            return false;
+        }
 
         boolean dataChanged = false;
 
@@ -291,36 +354,49 @@ public class persistentFriends {
         String[] oldUUIDs = new String[oldFriendCount];
         String[] newUUIDs = new String[newFriends.size()];
 
-        for (int x=0; x < oldFriends.size();x++) {
+        for (int x = 0; x < oldFriends.size(); x++) {
             oldUUIDs[x] = oldFriends.get(x).getUUID();
-            //Log.v(LOGTAG,"mergeLists - old friend: " + oldUUIDs[x]);
+            if (MainActivity.Debug > 10) {
+                Log.v(LOGTAG, "mergeLists - old friend: " + oldUUIDs[x]);
+            }
         }
-        for (int x=0; x < newFriends.size();x++) {
+        for (int x = 0; x < newFriends.size(); x++) {
             miataruFriend friend = newFriends.get(x);
             String ID = friend.getUUID();
 
-            //Log.v(LOGTAG,"mergeLists - new friend: " + ID);
+            if (MainActivity.Debug > 10) {
+                Log.v(LOGTAG, "mergeLists - new friend: " + ID);
+            }
 
             newUUIDs[x] = ID;
 
             boolean newID = true;
-            for (int n=0;n<oldFriendCount;n++) {
-                if ( ID.compareTo(oldUUIDs[n]) == 0 ) {
+            for (int n = 0; n < oldFriendCount; n++) {
+                if (ID.compareTo(oldUUIDs[n]) == 0) {
                     // Same UUID found. Copy info in case it has changed.
                     newID = false;
-                    oldFriends.get(n).setAlias(friend.getAlias());
-                    if ( friend.hasLocation() ) {
-                        //Log.v(LOGTAG,"mergeLists - friend exists. adding the info");
+                    if (friend.getAlias() != null && friend.getAlias().length() > 0 && friend.getAlias().compareTo(oldFriends.get(n).getAlias()) != 0) {
+                        oldFriends.get(n).setAlias(friend.getAlias());
+                        dataChanged = true;
+                    }
+                    if (friend.hasLocation()) {
+                        if (MainActivity.Debug > 10) {
+                            Log.v(LOGTAG, "mergeLists - friend exists. adding the info");
+                        }
 
                         oldFriends.get(n).setLocation(friend.getLocation());
-                        dataChanged = true;
+                    }
+                    if (MainActivity.Debug > 5) {
+                        Log.v(LOGTAG, "mergeLists updating " + friend.getShowText());
                     }
                     break;
                 }
             }
 
-            if ( newID ) {
-                //Log.v(LOGTAG,"mergeLists - new friend. add it");
+            if (newID) {
+                if (MainActivity.Debug > 5) {
+                    Log.v(LOGTAG, "mergeLists adding " + friend.getShowText());
+                }
 
                 oldFriends.add(friend);
                 dataChanged = true;
@@ -329,20 +405,25 @@ public class persistentFriends {
 
         // Check if some of the friends we have are gone in the new load and delete them
         // Should not happen, just for consistency
-        for (int x=oldFriendCount-1;x>=0;x--) {
-            String ID = oldFriends.get(x).getUUID();
-            boolean missing = true;
+        if (!addOnly) {
+            for (int x = oldFriendCount - 1; x >= 0; x--) {
+                String ID = oldFriends.get(x).getUUID();
+                boolean missing = true;
 
-            for (int n=0;n<newFriends.size();n++) {
-                if ( ID.compareTo(newUUIDs[n]) == 0 ) {
-                    missing = false;
-                    break;
+                for (int n = 0; n < newFriends.size(); n++) {
+                    if (ID.compareTo(newUUIDs[n]) == 0) {
+                        missing = false;
+                        break;
+                    }
                 }
-            }
 
-            if ( missing ) {
-                oldFriends.remove(x);
-                dataChanged = true;
+                if (missing) {
+                    if (MainActivity.Debug > 5) {
+                        Log.v(LOGTAG, "mergeLists removing " + oldFriends.get(x).getShowText());
+                    }
+                    oldFriends.remove(x);
+                    dataChanged = true;
+                }
             }
         }
 
@@ -356,7 +437,7 @@ public class persistentFriends {
     //
 
     // Load full DB
-    private class loadFromDB extends AsyncTask<Void, Void, ArrayList<miataruFriend>> {
+    public class loadFromDB extends AsyncTask<Void, Void, ArrayList<miataruFriend>> {
 
         @Override
         protected void onPreExecute() {
@@ -370,7 +451,7 @@ public class persistentFriends {
 
             try {
                 Thread.sleep(3000);                 //1000 milliseconds is one second.
-            } catch(InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             }
 
@@ -378,24 +459,24 @@ public class persistentFriends {
             //friendList.clear();
             miataruFriend loc;
 
-            loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-            loc.setLocation(1,1,5,System.currentTimeMillis());
+            loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"), "Myself");
+            //loc.setLocation(1,1,5,System.currentTimeMillis());
             internalFriends.add(loc);
 
-            loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216","Demo Miataru device");
-            loc.setLocation(1,1,5,System.currentTimeMillis() - 60*60*3*1000);
+            loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "Demo Miataru device");
+            loc.setLocation(1, 1, 5, System.currentTimeMillis() - 60 * 60 * 3 * 1000);
             internalFriends.add(loc);
 
             loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
-            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60*3*1000 );
+            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60 * 3 * 1000);
             internalFriends.add(loc);
 
-            loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13","Test handy");
-            loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis() - 93*1000);
+            loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e14", "Test handy");
+            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 93 * 1000);
             internalFriends.add(loc);
 
-            loc = new miataruFriend("99999999-9999-9999-9999-999999999999",Long.toString(System.currentTimeMillis()));
-            loc.setLocation(2.0,2.0,50.0,System.currentTimeMillis() - 10*1000);
+            loc = new miataruFriend("99999999-9999-9999-9999-999999999999", Long.toString(System.currentTimeMillis()));
+            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 10 * 1000);
             internalFriends.add(loc);
 
             return internalFriends;
@@ -404,39 +485,35 @@ public class persistentFriends {
 
         @Override
         protected void onPostExecute(ArrayList<miataruFriend> friendsFromDB) {
-            Log.v(LOGTAG,"persistentFriends - Friends loaded from DB: " + friendsFromDB.size());
+            if (MainActivity.Debug > 2) {
+                Log.v(LOGTAG, "persistentFriends - Friends loaded from DB: " + friendsFromDB.size());
+            }
             tasks.remove(this);
             boolean newData = false;
             // Load the friend list to internal variable
             if (friendList.size() > 0) {
                 // There is some data already. compare and look for new
                 // We plan to use this call only for initial load, so this is still empty
-                Log.v(LOGTAG,"persistentFriends - Merging " + friendsFromDB.size() + " to " + friendList.size());
+                if (MainActivity.Debug > 5) {
+                    Log.v(LOGTAG, "persistentFriends - Merging " + friendsFromDB.size() + " to " + friendList.size());
+                }
 
-                Bundle saco = new Bundle();
-                Log.v(LOGTAG,"PARCELABLE - Saving " + friendsFromDB.size() + " friends");
-                saco.putParcelableArrayList("Testing",friendsFromDB);
-                friendsFromDB = null;
-                friendsFromDB = saco.getParcelableArrayList("Testing");
-                Log.v(LOGTAG,"PARCELABLE - Restored " + friendsFromDB.size() + " friends");
-
-
-                newData = mergeLists(friendList,friendsFromDB);
-
-
+                newData = mergeLists(friendList, friendsFromDB, false);
             } else {
                 friendList.clear();
 
-                miataruFriend loc;
-                loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-                loc.setLocation(1,1,5,System.currentTimeMillis());
-                friendList.add(loc);
+                //miataruFriend loc;
+                //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
+                //loc.setLocation(1,1,5,System.currentTimeMillis());
+                //friendList.add(loc);
 
                 friendList.addAll(friendsFromDB);
                 newData = true;
             }
 
-            Log.v(LOGTAG,"persistentFriends - New data: " + newData);
+            if (MainActivity.Debug > 5) {
+                Log.v(LOGTAG, "persistentFriends - Friend list changed: " + newData);
+            }
 
             // call all the callbacks
             if (newData) {
@@ -471,11 +548,13 @@ public class persistentFriends {
 
             try {
                 Thread.sleep(1000);                 //1000 milliseconds is one second.
-            } catch(InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             }
 
-            if ( friendToDelete[0].getAlias() != null && friendToDelete[0].getAlias().compareTo("Test handy") == 0 ) { return null; }
+            if (friendToDelete[0].getAlias() != null && friendToDelete[0].getAlias().compareTo("Test handy") == 0) {
+                return null;
+            }
 
             return friend;
         }
@@ -501,125 +580,39 @@ public class persistentFriends {
     // Asynchronus tasks for Miataru operations
     //
     //
-    private class MiataruGet extends AsyncTask<String,Void,String> {
-        @Override
-        protected String doInBackground(String... deviceids) {
-            //String URL = new String("https://"+zerbitzaria+"/v"+bertsioa+"/GetLocation");
-            String URL = new String("https://service.miataru.com/v1/GetLocation");
-            HttpClient httpclient = new DefaultHttpClient();
-            HttpPost request = new HttpPost(URL);
-            HttpResponse response;
-            InputStream buffer;
-            String wholeanswer;
-            StringEntity postdata;
-            JSONObject jsonrequest;
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        boolean changes = false;
 
-            try {
-                jsonrequest = new JSONObject();
-                JSONArray devicelist = new JSONArray();
-                for (int i=0;i<deviceids.length;i++) {
-                    JSONObject device = new JSONObject();
-                    device.accumulate("Device", deviceids[i]);
-                    devicelist.put(device);
+        if ( MainActivity.Debug > 5 ) { Log.v(LOGTAG, "persistentFriends - getFeedback - onReceive " + action); }
+
+        if (action.compareTo("com.example.topatu.friendlocationinformation") == 0)
+
+        {
+            // Callback from friend location update
+            Bundle b = intent.getExtras();
+
+            if (b != null) {
+                ArrayList<miataruFriend> friendsLocation = b.getParcelableArrayList("FriendInfo");
+
+                if (friendsLocation != null && friendsLocation.size() > 0) {
+                    mergeLists(friendList, friendsLocation);
+                    changes = true;
                 }
-                jsonrequest.accumulate("MiataruGetLocation", devicelist );
-                //Log.d(LOGTAG,"Request: "+jsonrequest.toString());
-            } catch(Exception e) {
-                //Log.d(LOGTAG,e.toString());
-                return "{ \"error\": \"Error creating JSON request - "+e.toString()+"\" }";
             }
-
-            try {
-                postdata = new StringEntity(jsonrequest.toString(),"UTF-8");
-            } catch(Exception e) {
-                //Log.d(LOGTAG,e.toString());
-                return "{ \"error\": \"String processing error - "+e.toString()+"\" }";
-            }
-            postdata.setContentType("application/json;charset=UTF-8");
-            postdata.setContentEncoding(new BasicHeader(HTTP.CONTENT_TYPE, "application/json;charset=UTF-8"));
-            //entity = json_string;
-            request.setEntity(postdata);
-
-            try {
-                response = httpclient.execute(request);
-                HttpEntity httpEntity = response.getEntity();
-                buffer = httpEntity.getContent();
-            } catch(Exception e) {
-                //Log.d(LOGTAG,e.toString());
-                return "{ \"error\":\"HTTP error - " + e.toString() + "\"}";
-            }
-            try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(buffer, "iso-8859-1"), 8);
-                StringBuilder sb = new StringBuilder();
-                String line = null;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line + "\n");
-                }
-                buffer.close();
-                wholeanswer = sb.toString();
-
-            } catch (Exception e) {
-                //Log.d(LOGTAG,e.toString());
-                return "{ \"error\":\"Error reading HTTP answer - " + e.toString() + "\"}";
-            }
-            return wholeanswer;
-
         }
-        @Override
-        protected void onPostExecute(String result) {
-            Log.d("MiataruLog",result);
-            //dbgoutput(result);
-            //dbgoutput("{\"MiataruGetLocation\":[{\"Device\":\"BF0160F5-4138-402C-A5F0-DEB1AA1F4216\"}]}");
-            // Process the JSPON answer
-            JSONObject answer;
-            JSONArray list;
-            try {
-                answer = new JSONObject(result);
-            } catch (Exception e) {
-                Log.d(LOGTAG,"No JSON data could be found on the answer");
-            }
-            try {
-                answer = new JSONObject(result);
-                list = answer.getJSONArray("MiataruLocation");
-            } catch (Exception e) {
-                Log.d(LOGTAG,"No Miataru answer");
-                return;
-            }
-            if ( list != null ) {
-                for (int i=0;i<list.length();i++) {
-                    String ID = null;
-                    try {
-                        JSONObject devicepos = list.getJSONObject(i);
-                        Location location = new Location("Miataru");
 
-                        ID = devicepos.getString("Device");
-
-                        location.setAltitude(devicepos.getDouble("Latitude"));
-                        location.setLongitude(devicepos.getDouble("Longitude"));
-                        location.setAccuracy((float)devicepos.getDouble("HorizontalAccuracy"));
-                        location.setTime(devicepos.getLong("Timestamp"));
-                        //devicelocations.put(ID, location);
-                        Log.d(LOGTAG,"Saving "+ID);
-                    } catch (Exception e) {
-                        if ( ID != null ) {
-                            Log.d(LOGTAG, "Error while reading info device location ("+ID+") - "+e.toString());
-                        } else {
-                            Log.d(LOGTAG, "Error while reading info device location - "+e.toString());
-                        }
-                    }
-                }
-            } else {
-                Log.d(LOGTAG,"Could not get location array");
+        if (changes) {
+            // do all the callbacks
+            for (int x = 0; x < callbacks.size(); x++) {
+                callbacks.get(x).refreshFriendInfo();
             }
-
-            //devicelocations.
         }
-        @Override
-        protected void onPreExecute() {}
 
-        @Override
-        protected void onProgressUpdate(Void... values) {}
+        //this.close();
     }
+
 
     //
     //

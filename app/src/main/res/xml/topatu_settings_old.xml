@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="Location reporting">
+        <CheckBoxPreference
+            android:key="report_location"
+            android:persistent="true"
+            android:defaultValue="false"
+            android:title="Enable location reporting" />
+        <!--
+                <EditTextPreference
+                    android:key="refresh_rate"
+                    android:dependency="report_location"
+                    android:persistent="true"
+                    android:defaultValue="5"
+                    android:inputType="number"
+                    android:title="Refresh frequency"
+                    android:summary="How often report my location" />
+        -->
+        <ListPreference
+            android:key="refresh_rate"
+            android:dependency="report_location"
+            android:persistent="true"
+            android:defaultValue="5"
+            android:title="Refresh frequency"
+            android:entries="@array/updatefreq"
+            android:entryValues="@array/updatefreqvalues"
+            android:dialogTitle="Acuracy of location" />
+        <ListPreference
+            android:key="location_acuracy"
+            android:dependency="report_location"
+            android:persistent="true"
+            android:defaultValue="charging"
+            android:title="Location acuracy"
+            android:entries="@array/listlocationacuracy"
+            android:entryValues="@array/listlocationacuracyvalues"
+            android:dialogTitle="Acuracy of location" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Advanced">
+        <EditTextPreference
+            android:key="my_id"
+            android:persistent="true"
+            android:title="My ID"
+            android:summary="Device identification ID" />
+        <EditTextPreference
+            android:key="miataru_server"
+            android:persistent="true"
+            android:defaultValue=""
+            android:title="Miataru server" />
+    </PreferenceCategory>
+</PreferenceScreen>

@@ -13,8 +13,6 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -42,16 +40,21 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     private String PREFS_NAME = null;
     private static String MyID = null;
     private persistentFriends friends;
+    private int currentTab=0;
 
-    private static Context context;
+
+    public static Context context;
+    public static int Debug = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.context = getApplicationContext();
-        Log.v(LOGTAG, "MainActivity - onCreate");
+        if ( this.Debug > 2 ) {
+            Log.v(LOGTAG, "MainActivity - onCreate");
+        }
 
-        if ( savedInstanceState != null ) {
+        if (savedInstanceState != null) {
             MyID = savedInstanceState.getString("MyID", null);
         }
         //
@@ -63,17 +66,17 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             // my_id
             MyID = settings.getString("my_id", null);
             if (MyID == null) {
-                Log.v(LOGTAG,"No UUID found");
+                if ( this.Debug > 2 ) { Log.v(LOGTAG, "No UUID found"); }
                 MyID = UUID.randomUUID().toString();
-                Log.v(LOGTAG,"New one: "+MyID);
+                if ( this.Debug > 2 ) { Log.v(LOGTAG, "New one: " + MyID); }
                 SharedPreferences.Editor editor = settings.edit();
                 editor.putString("my_id", MyID);
                 editor.apply();
             } else {
-                Log.v(LOGTAG, "Reading from config UUID: " + MyID);
+                if ( this.Debug > 2 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
             }
         } else {
-            Log.v(LOGTAG, "App still running UUID: " + MyID);
+            if ( this.Debug > 2 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
 
         }
 
@@ -81,11 +84,13 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         // Create an instance of persistentFriends
         //
         friends = new persistentFriends();
-        if ( savedInstanceState != null ) {
-            Log.v(LOGTAG, "MainActivity - trying to restore friendlist");
-            Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
+        if (savedInstanceState != null) {
+            if ( this.Debug > 2 ) {
+                Log.v(LOGTAG, "MainActivity - trying to restore friendlist");
+                Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
+            }
             persistentFriends.onRestoreInstanceState(savedInstanceState);
-            Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
+            if ( this.Debug > 2 ) { Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size()); }
         }
 
 
@@ -115,6 +120,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         mViewPager.setOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
             @Override
             public void onPageSelected(int position) {
+                currentTab = position;
                 actionBar.setSelectedNavigationItem(position);
             }
         });
@@ -130,6 +136,16 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
                             .setText(mSectionsPagerAdapter.getPageTitle(i))
                             .setTabListener(this));
         }
+
+        if (savedInstanceState != null) {
+            // Go to previously selected tab
+            int pos;
+            pos = savedInstanceState.getInt("TopatuSelecetTab", -1);
+            if (pos != -1) {
+                mViewPager.setCurrentItem(pos);
+                actionBar.setSelectedNavigationItem(pos);
+            }
+        }
     }
 
     //
@@ -139,7 +155,9 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     //
     @Override
     public void onSaveInstanceState(Bundle savedInstanceState) {
-        Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information");
+        if ( this.Debug > 2 ) { Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information"); }
+        savedInstanceState.putString("MyID", MyID);
+        savedInstanceState.putInt("TopatuSelecetTab",currentTab);
         persistentFriends.onSaveInstanceState(savedInstanceState);
     }
 
@@ -178,7 +196,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     public void onTabSelected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
         // When the given tab is selected, switch to the corresponding page in
         // the ViewPager.
-        mViewPager.setCurrentItem(tab.getPosition());
+        currentTab = tab.getPosition();
+        mViewPager.setCurrentItem(currentTab);
     }
 
     @Override
@@ -203,7 +222,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
             // Return a PlaceholderFragment (defined as a static inner class below).
-            Log.v("Topatu", "SectionsPagerAdapter - getItem ("+position+")");
+            //if ( this.Debug > 2 ) { Log.v("Topatu", "SectionsPagerAdapter - getItem ("+position+")"); }
             Fragment f;
             switch(position) {
                 case 0: f = fragmentFriendView.newInstance();break;
@@ -253,7 +272,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
          * number.
          */
         public static PlaceholderFragment newInstance(int sectionNumber) {
-            Log.v(LOGTAG, "placeholderFragment - newInstance");
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - newInstance"); }
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
@@ -266,7 +285,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-            Log.v(LOGTAG, "placeholderFragment - onCreateView");
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onCreateView"); }
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             //TextView textView = (TextView) rootView.findViewById(R.id.section_label);
             //textView.setText("Tab "+this.getArguments().getInt(ARG_SECTION_NUMBER,9));
@@ -276,13 +295,13 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         @Override
         public void onPause() {
             super.onPause();
-            Log.v(LOGTAG, "placeholderFragment - onPause");
+            if ( this.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onPause"); }
         }
 
         @Override
         public void onResume() {
             super.onResume();
-            Log.v(LOGTAG, "placeholderFragment - onResume");
+            if ( this.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onResume"); }
         }
         */
     }

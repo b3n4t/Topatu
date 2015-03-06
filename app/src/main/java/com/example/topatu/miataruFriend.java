@@ -20,7 +20,7 @@ public class miataruFriend implements Parcelable {
     private double Latitude;
     private double Longitude;
     private float Accuracy = 0;
-    private long TimeStamp;
+    private long TimeStamp = 0;
 
     //
     //
@@ -58,7 +58,7 @@ public class miataruFriend implements Parcelable {
     //
     //
     protected  miataruFriend(Parcel in) {
-        Log.v("TopatuLog","miataruFriend - creating from PARCEL");
+        if ( MainActivity.Debug > 8 ) { Log.v("TopatuLog","miataruFriend - creating from PARCEL"); }
         UUID = in.readString();
         Alias = in.readString();
 
@@ -73,7 +73,7 @@ public class miataruFriend implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        Log.v("TopatuLog", "miataruFriend - writing to PARCEL");
+        if ( MainActivity.Debug > 8 ) { Log.v("TopatuLog", "miataruFriend - writing to PARCEL"); }
 
         dest.writeString(UUID);
         dest.writeString(Alias);
@@ -103,6 +103,53 @@ public class miataruFriend implements Parcelable {
         }
     };
 
+
+    //
+    //
+    // special get functions useful for showing the information
+    //
+    //
+    public String getShowText () {
+        if ( Alias != null && Alias.length() > 0 ) {
+            return Alias;
+        } else {
+            return UUID;
+        }
+    }
+
+    public String getSecondaryText () {
+        if ( this.hasLocation() ) {
+            //return "Lat " + Latitude + "; Lon: " + Longitude + "  ("+ Accuracy +")";
+            return String.format( "Lon: %.2f; Lat: %.2f (%.0f)", Longitude, Latitude, Accuracy );
+        }
+        if ( Alias != null && Alias.length() > 0 ) {
+            return UUID;
+        }
+        return "";
+    }
+
+    public String getUpdateTime () {
+        if ( ! hasLocation ) { return "N/A"; }
+
+        long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
+
+        if ( timediff < 0 ) { return "N/A"; }
+
+        String answer;
+        if ( timediff > 60*60*24*2 ) {
+            timediff = timediff / (60*60*24);
+            answer = timediff+" d";
+        } else if ( timediff > 60*60*2 ) {
+            timediff = timediff / (60*60);
+            answer = timediff+" h";
+        } else if ( timediff > 60*2 ) {
+            timediff = timediff / 60;
+            answer = timediff+" m";
+        } else {
+            answer = timediff+" s";
+        }
+        return answer;
+    }
 
     //
     //
@@ -143,26 +190,6 @@ public class miataruFriend implements Parcelable {
 
     public long getTimeStamp () { return TimeStamp; }
 
-    public String getUpdateTime () {
-        long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
-
-        if ( timediff < 0 ) { return null; }
-
-        String answer;
-        if ( timediff > 60*60*24*2 ) {
-            timediff = timediff / (60*60*24);
-            answer = timediff+" d";
-        } else if ( timediff > 60*60*2 ) {
-            timediff = timediff / (60*60);
-            answer = timediff+" h";
-        } else if ( timediff > 60*2 ) {
-            timediff = timediff / 60;
-            answer = timediff+" m";
-        } else {
-            answer = timediff+" s";
-        }
-        return answer;
-    }
     //
     //
     // Methods to me used with LocationProvider, GoogleMaps and such
