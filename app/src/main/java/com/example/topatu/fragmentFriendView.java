@@ -49,7 +49,7 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         //getFakeData();
 
         //ArrayAdapter<miataruFriend> adapter = new ArrayAdapter<miataruFriend>(getActivity(),android.R.layout.simple_list_item_1, friends);
-        adapter = new adapterFriendArray((Context)getActivity(),friends);
+        adapter = new adapterFriendArray(getActivity(),friends);
         setListAdapter(adapter);
 
         getListView().setOnItemLongClickListener(this);

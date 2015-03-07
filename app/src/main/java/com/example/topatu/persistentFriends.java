@@ -181,13 +181,19 @@ public class persistentFriends extends BroadcastReceiver {
         int interval = 60;
         // If wifi or power is available set a fast refresh
         // else try to not use a lot of battery/bandwidth
-        if (true) {
-            interval = 15;
+        if ( MainActivity.isWifiActive() ) {
+            if ( MainActivity.isPowerConnected() ) {
+                interval = 6;
+            } else {
+                interval = 15;
+            }
         } else {
             interval = 60;
         }
 
-        interval = 60;
+        if ( MainActivity.Debug > 0 ) {
+            interval = 60;
+        }
 
         if (alarmMgr == null) {
             //alarmMgr = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
@@ -467,17 +473,23 @@ public class persistentFriends extends BroadcastReceiver {
             loc.setLocation(1, 1, 5, System.currentTimeMillis() - 60 * 60 * 3 * 1000);
             internalFriends.add(loc);
 
+            //loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "Test handy");
+            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 93 * 1000);
+            //internalFriends.add(loc);
+
+            internalFriends.add(new miataruFriend("7b8e6e0ee5296db345162dc2ef652c1350761823", "Miataru1"));
+            internalFriends.add(new miataruFriend("b0d3c313f97e199eb733e5e9846a3c2c53b4aff4", "Miataru2"));
+            internalFriends.add(new miataruFriend("d9faf945cdcb11350bb7a4ccbb2c84138fe4ba54", "Miataru3"));
+            internalFriends.add(new miataruFriend("e64a3682ce5a44cff5d9aeaf4c4697c26fa4f977", "Miataru4"));
+
             loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
-            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60 * 3 * 1000);
+            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60 * 3 * 1000);
             internalFriends.add(loc);
 
-            loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e14", "Test handy");
-            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 93 * 1000);
-            internalFriends.add(loc);
 
-            loc = new miataruFriend("99999999-9999-9999-9999-999999999999", Long.toString(System.currentTimeMillis()));
-            loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 10 * 1000);
-            internalFriends.add(loc);
+            //loc = new miataruFriend("99999999-9999-9999-9999-999999999999", Long.toString(System.currentTimeMillis()));
+            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 10 * 1000);
+            //internalFriends.add(loc);
 
             return internalFriends;
 

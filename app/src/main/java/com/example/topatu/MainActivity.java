@@ -1,7 +1,12 @@
 package com.example.topatu;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
@@ -49,10 +54,13 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        this.context = getApplicationContext();
-        if ( this.Debug > 2 ) {
+        MainActivity.context = getApplicationContext();
+        if ( MainActivity.Debug > 2 ) {
             Log.v(LOGTAG, "MainActivity - onCreate");
         }
+
+        Log.v(LOGTAG,"*** Power: "+MainActivity.isPowerConnected());
+        Log.v(LOGTAG,"*** Wifi: "+MainActivity.isWifiActive());
 
         if (savedInstanceState != null) {
             MyID = savedInstanceState.getString("MyID", null);
@@ -66,17 +74,17 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             // my_id
             MyID = settings.getString("my_id", null);
             if (MyID == null) {
-                if ( this.Debug > 2 ) { Log.v(LOGTAG, "No UUID found"); }
+                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "No UUID found"); }
                 MyID = UUID.randomUUID().toString();
-                if ( this.Debug > 2 ) { Log.v(LOGTAG, "New one: " + MyID); }
+                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "New one: " + MyID); }
                 SharedPreferences.Editor editor = settings.edit();
                 editor.putString("my_id", MyID);
                 editor.apply();
             } else {
-                if ( this.Debug > 2 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
+                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
             }
         } else {
-            if ( this.Debug > 2 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
 
         }
 
@@ -85,12 +93,12 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         //
         friends = new persistentFriends();
         if (savedInstanceState != null) {
-            if ( this.Debug > 2 ) {
+            if ( MainActivity.Debug > 2 ) {
                 Log.v(LOGTAG, "MainActivity - trying to restore friendlist");
                 Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
             }
             persistentFriends.onRestoreInstanceState(savedInstanceState);
-            if ( this.Debug > 2 ) { Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size()); }
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size()); }
         }
 
 
@@ -155,7 +163,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     //
     @Override
     public void onSaveInstanceState(Bundle savedInstanceState) {
-        if ( this.Debug > 2 ) { Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information"); }
+        if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information"); }
         savedInstanceState.putString("MyID", MyID);
         savedInstanceState.putInt("TopatuSelecetTab",currentTab);
         persistentFriends.onSaveInstanceState(savedInstanceState);
@@ -222,7 +230,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
             // Return a PlaceholderFragment (defined as a static inner class below).
-            //if ( this.Debug > 2 ) { Log.v("Topatu", "SectionsPagerAdapter - getItem ("+position+")"); }
+            //if ( MainActivity.Debug > 2 ) { Log.v("Topatu", "SectionsPagerAdapter - getItem ("+position+")"); }
             Fragment f;
             switch(position) {
                 case 0: f = fragmentFriendView.newInstance();break;
@@ -295,18 +303,37 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         @Override
         public void onPause() {
             super.onPause();
-            if ( this.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onPause"); }
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onPause"); }
         }
 
         @Override
         public void onResume() {
             super.onResume();
-            if ( this.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onResume"); }
+            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onResume"); }
         }
         */
     }
 
+    //
+    //
+    // Some common functions for the application
+    //
+    //
     public static Context getAppContext() {
         return MainActivity.context;
+    }
+
+    public static boolean isWifiActive () {
+        ConnectivityManager connManager = (ConnectivityManager) MainActivity.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo mWifi = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+
+         return mWifi.isConnected();
+    }
+
+    public static boolean isPowerConnected () {
+        Intent intent = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if ( intent == null ) { return false; }
+        int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+        return plugged == BatteryManager.BATTERY_PLUGGED_AC || plugged == BatteryManager.BATTERY_PLUGGED_USB;
     }
 }

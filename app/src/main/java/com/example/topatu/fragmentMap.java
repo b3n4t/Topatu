@@ -68,9 +68,6 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         MapsInitializer.initialize(inflater.getContext());
 
         myMapView = ((MapView)view.findViewById(R.id.map_googlemap));
-        myMapView.onCreate(savedInstanceState);
-        myMapView.getMapAsync(this);
-        //myMap = myMapView.getMap();
 
         // set adapter to spinner
         friendName = (Spinner)view.findViewById(R.id.map_friend_show);
@@ -86,6 +83,9 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "fragmentMap - onActivityCreated"); }
+        myMapView.onCreate(savedInstanceState);
+        myMapView.getMapAsync(this);
+        //myMap = myMapView.getMap();
     }
 
     //
