@@ -14,6 +14,7 @@ import android.widget.FrameLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
@@ -43,15 +44,11 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     private Spinner friendName = null;
     private adapterFriendArray friendAdapter;
 
+    private static final String SAVESTATE_SPINNER_SELECTION = "fragmentMap-friendSpinner";
 
 
     public static fragmentMap  newInstance() {
-        fragmentMap f = new fragmentMap();
-        //Bundle b = new Bundle();
-        //b.putString("msg", text);
-        //f.setArguments(b);
-
-        return f;
+        return new fragmentMap();
     }
 
     @Override
@@ -65,16 +62,31 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         //frame = (FrameLayout)inflater.inflate(R.layout.fragment_map, container, false);
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
-        MapsInitializer.initialize(inflater.getContext());
+        //MapsInitializer.initialize(inflater.getContext());
 
-        myMapView = ((MapView)view.findViewById(R.id.map_googlemap));
+        myMapView = (MapView)view.findViewById(R.id.map_googlemap);
+        myMapView.onCreate(savedInstanceState);
 
-        // set adapter to spinner
+        //myMapView.getMapAsync(this);
+        myMap = myMapView.getMap();
+
+        myMap.getUiSettings().setMyLocationButtonEnabled(false);
+        myMap.setMyLocationEnabled(true);
+
+        // Needs to call MapsInitializer before doing any CameraUpdateFactory calls
+        MapsInitializer.initialize(this.getActivity());
+
+
+        // configured friend dropdown-list
         friendName = (Spinner)view.findViewById(R.id.map_friend_show);
         friendName.setOnItemSelectedListener(this);
-
+        // set adapter to spinner
         friendAdapter = new adapterFriendArray(inflater.getContext(),persistentFriends.getFriends());
         friendName.setAdapter(friendAdapter);
+        if ( savedInstanceState != null && savedInstanceState.containsKey(SAVESTATE_SPINNER_SELECTION) ){
+            friendName.setSelection(savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION));
+            if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size()); }
+        }
 
         return view;
     }
@@ -83,14 +95,18 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "fragmentMap - onActivityCreated"); }
-        myMapView.onCreate(savedInstanceState);
-        myMapView.getMapAsync(this);
-        //myMap = myMapView.getMap();
+    }
+
+    @Override
+    public void onSaveInstanceState (Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Saving selected friend: " + friendName.getSelectedItemPosition()); }
+        outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition());
     }
 
     //
     //
-    // Create and destroy the friend reference objecto together with the fragment
+    // Create and destroy the friend reference objects together with the fragment
     //
     //
     @Override
@@ -103,10 +119,24 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     @Override
     public void onResume() {
         super.onResume();
+        myMapView.onResume();
+
         if ( friendData == null ) {
             friendData = new persistentFriends(this);
         }
         friendData.registerCallback(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        myMapView.onDestroy();
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        myMapView.onLowMemory();
     }
 
     //
@@ -153,7 +183,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     public void refreshFriendInfo () {
         friendAdapter.notifyDataSetChanged();
 
-        if ( activeFriend == null ) { return; }
+        if ( activeFriend == null || !activeFriend.hasLocation() ) { return; }
 
         if ( friendMarker != null ) {
             friendMarker.setPosition(activeFriend.getLatLng());
@@ -168,7 +198,9 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         if ( centerOnFriend && myMap != null && activeFriend != null && activeFriend.hasLocation() ) {
             try {
                 //myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
-                myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), 10));
+                myMap.animateCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
+
+                //myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), 10));
                 //if ( myMap.get)
 
                 //myMap.moveCamera(CameraUpdateFactory.newLatLngBounds(activeFriend.getLatLng(), 10));
@@ -225,8 +257,8 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
             // Center the camera in the selected friend
             Log.v(LOGTAG,"*** Zooming the camera");
             try {
-                //myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
                 myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(),10));
+                myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(),10));
                 //if ( myMap.get)
 
                 //myMap.moveCamera(CameraUpdateFactory.newLatLngBounds(activeFriend.getLatLng(), 10));

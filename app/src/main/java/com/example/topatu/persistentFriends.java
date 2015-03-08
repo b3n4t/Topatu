@@ -192,7 +192,7 @@ public class persistentFriends extends BroadcastReceiver {
         }
 
         if ( MainActivity.Debug > 0 ) {
-            interval = 60;
+            interval = 5;
         }
 
         if (alarmMgr == null) {
@@ -470,7 +470,15 @@ public class persistentFriends extends BroadcastReceiver {
             internalFriends.add(loc);
 
             loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "Demo Miataru device");
-            loc.setLocation(1, 1, 5, System.currentTimeMillis() - 60 * 60 * 3 * 1000);
+            //loc.setLocation(1, 1, 5, System.currentTimeMillis() - 60 * 60 * 3 * 1000);
+            internalFriends.add(loc);
+
+            loc = new miataruFriend("00000000-0000-0000-0000-000000000001", "Mendillorri");
+            loc.setLocation(42.813323, -1.612299, Float.valueOf(30));
+            internalFriends.add(loc);
+
+            loc = new miataruFriend("00000000-0000-0000-0000-000000000002", "CarlosV");
+            loc.setLocation(43.364981, -1.793445, Float.valueOf(30));
             internalFriends.add(loc);
 
             //loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "Test handy");

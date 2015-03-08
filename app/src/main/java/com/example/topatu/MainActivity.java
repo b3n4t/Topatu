@@ -162,11 +162,12 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     //
     //
     @Override
-    public void onSaveInstanceState(Bundle savedInstanceState) {
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
         if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information"); }
-        savedInstanceState.putString("MyID", MyID);
-        savedInstanceState.putInt("TopatuSelecetTab",currentTab);
-        persistentFriends.onSaveInstanceState(savedInstanceState);
+        outState.putString("MyID", MyID);
+        outState.putInt("TopatuSelecetTab",currentTab);
+        persistentFriends.onSaveInstanceState(outState);
     }
 
     @Override
