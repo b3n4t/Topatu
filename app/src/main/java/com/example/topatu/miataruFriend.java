@@ -19,8 +19,8 @@ public class miataruFriend implements Parcelable {
     private boolean hasLocation = false;
     private double Latitude;
     private double Longitude;
-    private float Accuracy = 0;
-    private long TimeStamp = 0;
+    private float Accuracy;
+    private long TimeStamp = -1;
 
     //
     //
@@ -129,7 +129,7 @@ public class miataruFriend implements Parcelable {
     }
 
     public String getUpdateTime () {
-        if ( ! hasLocation ) { return "N/A"; }
+        if ( ! hasLocation || TimeStamp < 0 ) { return "N/A"; }
 
         long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
 

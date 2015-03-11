@@ -1,6 +1,7 @@
 package com.example.topatu;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -14,7 +15,6 @@ import android.widget.FrameLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
@@ -34,6 +34,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     private static String LOGTAG = "TopatuLog";
     private persistentFriends friendData = null;
     private boolean centerOnFriend = false;
+    private boolean cameraTriggered = false;
     private FrameLayout frame = null;
     private MapView myMapView = null;
     private GoogleMap myMap = null;
@@ -44,6 +45,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     private Spinner friendName = null;
     private adapterFriendArray friendAdapter;
 
+    private static final int DEFAULT_ZOOM = 12;
     private static final String SAVESTATE_SPINNER_SELECTION = "fragmentMap-friendSpinner";
 
 
@@ -70,8 +72,15 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         //myMapView.getMapAsync(this);
         myMap = myMapView.getMap();
 
+        myMap.setOnCameraChangeListener(this);
+        myMap.setOnMarkerClickListener(this);
+
+        myMap.setMyLocationEnabled(false);
+        myMap.getUiSettings().setZoomControlsEnabled(true);
         myMap.getUiSettings().setMyLocationButtonEnabled(false);
-        myMap.setMyLocationEnabled(true);
+        myMap.getUiSettings().setZoomControlsEnabled(false);
+        myMap.getUiSettings().setRotateGesturesEnabled(false);
+        myMap.getUiSettings().setTiltGesturesEnabled(false);
 
         // Needs to call MapsInitializer before doing any CameraUpdateFactory calls
         MapsInitializer.initialize(this.getActivity());
@@ -79,7 +88,6 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
         // configured friend dropdown-list
         friendName = (Spinner)view.findViewById(R.id.map_friend_show);
-        friendName.setOnItemSelectedListener(this);
         // set adapter to spinner
         friendAdapter = new adapterFriendArray(inflater.getContext(),persistentFriends.getFriends());
         friendName.setAdapter(friendAdapter);
@@ -87,6 +95,12 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
             friendName.setSelection(savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION));
             if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size()); }
         }
+        friendName.setOnItemSelectedListener(this);
+        friendName.setBackgroundColor(0xFFFFFFFF);
+        //Drawable dr = friendName.getBackground();
+        //dr.setAlpha(0xF0);
+        //dr.setAlpha(255);
+        //friendName.setBackgroundDrawable(dr);
 
         return view;
     }
@@ -157,15 +171,19 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     //
     //
     public   void onCameraChange (CameraPosition position) {
-        centerOnFriend = false;
+        //Log.v(LOGTAG,"**** onCameraChange " + cameraTriggered);
+        centerOnFriend  = cameraTriggered;
+        cameraTriggered = false;
     }
     public boolean onMarkerClick (Marker marker) {
-        if ( !centerOnFriend ) {
-            centerOnFriend = true;
-        }
-        if ( myMap != null && activeFriend != null && activeFriend.hasLocation() ) {
+
+        if ( MainActivity.Debug > 0 ) { Log.e(LOGTAG,"fragmentMap - onMarkerClick"); }
+        centerOnFriend = true;
+
+        if ( myMap != null && marker != null ) {
             try {
-                myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
+                cameraTriggered = true;
+                myMap.moveCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
             } catch (IllegalStateException e) {
                 // We could not change the camera of the Map
                 if ( MainActivity.Debug > 2 ) { Log.e(LOGTAG,"GoogleMap IllegalStateException " + e.getMessage()); }
@@ -173,7 +191,6 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         }
         return true;
     }
-
 
     //
     //
@@ -184,6 +201,10 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         friendAdapter.notifyDataSetChanged();
 
         if ( activeFriend == null || !activeFriend.hasLocation() ) { return; }
+
+        if ( activeFriendTimeStamp > 0 && activeFriendTimeStamp >= activeFriend.getTimeStamp() ) { return; }
+
+        activeFriendTimeStamp = activeFriend.getTimeStamp();
 
         if ( friendMarker != null ) {
             friendMarker.setPosition(activeFriend.getLatLng());
@@ -197,15 +218,8 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
         if ( centerOnFriend && myMap != null && activeFriend != null && activeFriend.hasLocation() ) {
             try {
-                //myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
+                cameraTriggered = true;
                 myMap.animateCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
-
-                //myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), 10));
-                //if ( myMap.get)
-
-                //myMap.moveCamera(CameraUpdateFactory.newLatLngBounds(activeFriend.getLatLng(), 10));
-                //myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
-                //CameraUpdateFactory.newLatLng()
             } catch (IllegalStateException e) {
                 // We could not change the camera of the Map
                 if ( MainActivity.Debug > 2 ) { Log.e(LOGTAG,"GoogleMap IllegalStateException " + e.getMessage()); }
@@ -231,43 +245,53 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
         activeFriend = persistentFriends.getFriends().get(pos);
 
+        if ( activeFriend != null && activeFriend.hasLocation() ) {
+            activeFriendTimeStamp = activeFriend.getTimeStamp();
+        } else {
+            activeFriendTimeStamp = 0;
+        }
+
         Log.v(LOGTAG,"Friend selected from spinner: " + activeFriend.getShowText());
 
-        if ( myMap != null && activeFriend != null && activeFriend.hasLocation() ) {
-            Log.v(LOGTAG,"*** Creating marker and circle");
-            if (friendMarker == null) {
-                friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
-                friendMarker.setDraggable(false);
+        if ( myMap != null ) {
+            if ( activeFriend != null && activeFriend.hasLocation() ) {
+                Log.v(LOGTAG, "*** Creating marker and circle");
+                if (friendMarker == null) {
+                    friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
+                    friendMarker.setDraggable(false);
+                } else {
+                    friendMarker.setPosition(activeFriend.getLatLng());
+                    friendMarker.setTitle(activeFriend.getShowText());
+                    friendMarker.setSnippet(activeFriend.getSecondaryText());
+
+                    friendMarker.setVisible(true);
+                }
+                if (friendCircle == null) {
+                    friendCircle = myMap.addCircle(activeFriend.getCircleOptions());
+                } else {
+                    friendCircle.setCenter(activeFriend.getLatLng());
+                    friendCircle.setRadius(activeFriend.getAccuracy());
+
+                    friendCircle.setVisible(true);
+                }
+
+                // Center the camera in the selected friend
+                Log.v(LOGTAG, "*** Zooming the camera");
+                try {
+                    cameraTriggered = true;
+                    myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), DEFAULT_ZOOM));
+                } catch (IllegalStateException e) {
+                    // We could not change the camera of the Map
+                    if (MainActivity.Debug > 2) {
+                        Log.e(LOGTAG, "GoogleMap IllegalStateException " + e.getMessage());
+                    }
+                }
             } else {
-                friendMarker.setPosition(activeFriend.getLatLng());
-                friendMarker.setTitle(activeFriend.getShowText());
-                friendMarker.setSnippet(activeFriend.getSecondaryText());
-
-                friendMarker.setVisible(true);
-            }
-            if ( friendCircle == null ) {
-                friendCircle = myMap.addCircle(activeFriend.getCircleOptions());
-            } else {
-                friendCircle.setCenter(activeFriend.getLatLng());
-                friendCircle.setRadius(activeFriend.getAccuracy());
-
-                friendCircle.setVisible(true);
-            }
-
-            // Center the camera in the selected friend
-            Log.v(LOGTAG,"*** Zooming the camera");
-            try {
-                myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(),10));
-                myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(),10));
-                //if ( myMap.get)
-
-                //myMap.moveCamera(CameraUpdateFactory.newLatLngBounds(activeFriend.getLatLng(), 10));
-                //myMap.moveCamera(CameraUpdateFactory.newLatLng(activeFriend.getLatLng()));
-                //CameraUpdateFactory.newLatLng()
-            } catch (IllegalStateException e) {
-                // We could not change the camera of the Map
-                if (MainActivity.Debug > 2) {
-                    Log.e(LOGTAG, "GoogleMap IllegalStateException " + e.getMessage());
+                if ( friendMarker != null ) {
+                    friendMarker.setVisible(false);
+                }
+                if ( friendCircle != null ) {
+                    friendCircle.setVisible(false);
                 }
             }
         }
@@ -306,10 +330,14 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
             if (textDisplay == null) {
                 textDisplay = new TextView(context);
+                Log.v(LOGTAG,"Recycling View from " + textDisplay.getText());
             }
 
             textDisplay.setText(values.get(position).getShowText());
             textDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            textDisplay.setBackgroundColor(Color.TRANSPARENT);
+            //textDisplay.setPadding(5,5,5,5);
+            //textDisplay.setBackgroundResource(R.drawable.layout_rounded_bg);
 
             return textDisplay;
         }

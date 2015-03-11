@@ -30,6 +30,8 @@ public class fragmentSettings extends Fragment {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         TextView textView = (TextView) rootView.findViewById(R.id.section_label);
         textView.setText("Settings goes here");
+        //ColorDrawable dr = (ColorDrawable)textView.getBackground();
+        //textView.setText("Settings goes here " + dr.getColor());
         return rootView;
     }
 

@@ -154,6 +154,13 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
                 actionBar.setSelectedNavigationItem(pos);
             }
         }
+
+        //
+        // Start the background service
+        //
+        Intent service = new Intent(context, serviceLocationUploader.class);
+        service.putExtra("StartedFrom","MainActivity");
+        context.startService(service);
     }
 
     //

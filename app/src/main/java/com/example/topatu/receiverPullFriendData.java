@@ -33,17 +33,20 @@ public class receiverPullFriendData extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.v("TopatuLog", "receiverPullFriendData - onReceive " + intent.getAction());
+        if (MainActivity.Debug > 3) { Log.v("TopatuLog", "receiverPullFriendData - onReceive " + intent.getAction()); }
 
-        new MiataruGet().execute();
+        new MiataruGet().execute(persistentFriends.getFriends());
     }
 
-    private class MiataruGet extends AsyncTask<Void,Void,ArrayList<miataruFriend>> {
+    private class MiataruGet extends AsyncTask<ArrayList<miataruFriend>,Void,ArrayList<miataruFriend>> {
         @Override
-        protected ArrayList<miataruFriend> doInBackground(Void... none ) {
+        protected ArrayList<miataruFriend> doInBackground(ArrayList<miataruFriend>... params ) {
+
+            ArrayList<miataruFriend> friendList = params[0];
+
             ArrayList<miataruFriend> friendLocations = new ArrayList<miataruFriend>();
 
-            ArrayList<miataruFriend> friendList = persistentFriends.getFriends();
+            //ArrayList<miataruFriend> friendList = persistentFriends.getFriends();
 
             String URL = new String("http://service.miataru.com/v1/GetLocation");
             HttpClient httpclient = new DefaultHttpClient();
@@ -151,7 +154,7 @@ public class receiverPullFriendData extends BroadcastReceiver {
                         friendLoc.setLocation(location);
 
                         //devicelocations.put(ID, location);
-                        Log.d(LOGTAG,"Friend location for "+ID);
+                        if ( MainActivity.Debug > 5 ) { Log.d(LOGTAG,"Friend location for "+ID); }
                         friendLocations.add(friendLoc);
                     } catch (Exception e) {
                         if ( ID != null ) {

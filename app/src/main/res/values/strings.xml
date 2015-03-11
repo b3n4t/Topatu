@@ -2,6 +2,7 @@
 <resources>
 
     <string name="app_name">Topatu</string>
+    <string name="service_name">Topatu Location Uploader</string>
     <string name="title_section_friends">Friends</string>
     <string name="title_section_map">Maps</string>
     <string name="title_section_settings">Settings</string>

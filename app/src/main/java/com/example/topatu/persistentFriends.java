@@ -6,7 +6,12 @@ import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.sqlite.SQLiteDatabase;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -15,6 +20,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Hashtable;
 
 /**
  * Created by Tricky on 21/02/2015.
@@ -23,22 +29,28 @@ import java.util.Calendar;
 
 public class persistentFriends extends BroadcastReceiver {
     private final static String LOGTAG = "TopatuLog";
-    private int activeinstances = 0;
     private static storageFriends dbHelper = null;
     private static SQLiteDatabase database = null;
     private static ArrayList<miataruFriend> friendList = new ArrayList<miataruFriend>();
     private static ArrayList<friendEvents> callbacks = new ArrayList<friendEvents>();
     private static ArrayList<AsyncTask> tasks = new ArrayList<AsyncTask>();
     private static ArrayList<Object> instances = new ArrayList<Object>();
-    private friendEvents myCallback;
-    private boolean clean = true;
+    private static String myID;
+    private static miataruFriend mySelf;
+    private static Hashtable<String, Location> locations = new Hashtable<>();
 
-    private static AlarmManager alarmMgr;
-    private static PendingIntent alarmIntent;
-
+    private static LocationManager locationManager;
+    private static LocationListener locationListener;
 
     private static final String SAVESTATE_NUM = "friendStateCount";
     private static final String SAVESTATE_FRIENDS = "friendStateFriendList";
+
+    private static AlarmManager alarmMgr;
+    private static PendingIntent alarmIntent;
+    private static BroadcastReceiver friendLocationReceiver;
+
+    private friendEvents myCallback;
+    private boolean clean = true;
 
     public persistentFriends() {
         this.defaultConfig();
@@ -55,8 +67,18 @@ public class persistentFriends extends BroadcastReceiver {
         if (MainActivity.Debug > 3) {
             Log.v(LOGTAG, "persistentFriends - new ");
         }
-        if (MainActivity.Debug > 3) {
+        if (MainActivity.Debug > 0) {
             Log.v(LOGTAG, "persistentFriends - " + (instances.size() + 1) + " until now");
+        }
+
+        if ( myID == null ) {
+            myID = PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id","No own UUID!!!!!!");
+            if ( myID.compareTo("No own UUID!!!!!!") == 0 ) { myID = null; }
+        }
+        if ( myID != null && mySelf == null) {
+            mySelf = new miataruFriend(myID, "Myself");
+            friendList.add(mySelf);
+            Log.v(LOGTAG,"Adding myself to the list " + mySelf.getUUID());
         }
 
         // If we are the first ones, open the DB
@@ -66,22 +88,45 @@ public class persistentFriends extends BroadcastReceiver {
             return;
         }
 
+        if ( locationManager  == null ) {
+            locationManager = (LocationManager) MainActivity.getAppContext().getSystemService(Context.LOCATION_SERVICE);
+        }
+
         if (instances.size() == 0) {
             DBOpen();
 
-            friendList.clear();
-            miataruFriend loc;
+            // Get current location
+            if (mySelf != null) {
+                // Get the location manager
+                //LocationManager locationManager = (LocationManager) MainActivity.getAppContext().getSystemService(Context.LOCATION_SERVICE);
+                // Define the criteria how to select the location provider -> use default
+                //Criteria criteria = new Criteria();
+                //String provider = locationManager.getBestProvider(criteria, false);
+                Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), false));
+                if (location != null) {
+                    mySelf.setLocation(location);
+                }
+            }
 
-            //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-            //loc.setLocation(1, 1, 5, System.currentTimeMillis());
+            if ( locationListener == null ) {
+                locationListener = new LocationListener() {
+                    public void onLocationChanged(Location location) { myLocationChanged(location); }
+                    public void onStatusChanged(String provider, int status, Bundle extras) {}
+                    public void onProviderEnabled(String provider) {}
+                    public void onProviderDisabled(String provider) {}
+                };
+            }
 
-            //friendList.add(loc);
+            // Activate the location listeners
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 400, 1, locationListener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 400, 1, locationListener);
 
-            // trigger a reload from DB
-            new loadFromDB().execute();
+
+            if (friendList.size() == 0 || friendList.get(0).equals(mySelf)) {
+                new loadFromDB().execute();
+            }
         }
 
-        //activeinstances++;
         instances.add(this);
         clean = false;
     }
@@ -105,6 +150,8 @@ public class persistentFriends extends BroadcastReceiver {
                 // Stop any pending HTTP async tasks
                 disableFriendPullJob();
             }
+
+            locationManager.removeUpdates(locationListener);
         }
 
         //activeinstances--;
@@ -117,6 +164,8 @@ public class persistentFriends extends BroadcastReceiver {
                 Log.v(LOGTAG, "persistentFriends - Last object destroyed. Closing DB and stopping everything");
             }
             DBClose();
+
+            locations.clear();
         }
     }
 
@@ -211,6 +260,39 @@ public class persistentFriends extends BroadcastReceiver {
         // SystemClock.elapsedRealtime() +
         // interval * 1000, alarmIntent);
 
+        //
+        // Now register the receiver to get the answers
+        //
+        if ( friendLocationReceiver == null ) {
+            friendLocationReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    boolean changes = false;
+
+                    if ( MainActivity.Debug > 5 ) { Log.v(LOGTAG, "persistentFriends - getFeedback - onReceive"); }
+
+                    // Callback from friend location update
+                    Bundle b = intent.getExtras();
+
+                    if (b != null) {
+                        ArrayList<miataruFriend> friendsLocation = b.getParcelableArrayList("FriendInfo");
+
+                        if (friendsLocation != null && friendsLocation.size() > 0) {
+                            changes = mergeLists(friendList, friendsLocation);
+                        }
+                    }
+
+                    if (changes) {
+                        // do all the callbacks
+                        callingTheCallbacks();
+                    }
+
+                }
+            };
+        }
+
+        IntentFilter filter = new IntentFilter("com.example.topatu.friendlocationinformation");
+        MainActivity.getAppContext().registerReceiver(friendLocationReceiver, filter);
     }
 
     private void disableFriendPullJob() {
@@ -218,8 +300,29 @@ public class persistentFriends extends BroadcastReceiver {
             Log.v(LOGTAG, "persistentFriends - disableFriendPullJob");
         }
         alarmMgr.cancel(alarmIntent);
+        MainActivity.getAppContext().unregisterReceiver(friendLocationReceiver);
     }
 
+    private void callingTheCallbacks () {
+        for (int x = 0; x < callbacks.size(); x++) {
+            callbacks.get(x).refreshFriendInfo();
+        }
+    }
+
+    //
+    //
+    // Location listener object
+    //
+    //
+    private void myLocationChanged (Location location) {
+        Log.v(LOGTAG, "Getting new location from " + location.getProvider());
+        if ( mySelf != null ) {
+            // We need to processing here, but meanwhile....
+
+            mySelf.setLocation(location);
+            callingTheCallbacks();
+        }
+    }
 
     //
     //
@@ -251,12 +354,12 @@ public class persistentFriends extends BroadcastReceiver {
     }
 
     public void removeFriend(miataruFriend friend) {
-        if (friendList.contains(friend)) {
-            friendList.remove(friend);
-            for (int x = 0; x < callbacks.size(); x++) {
-                callbacks.get(x).refreshFriendInfo();
+        if (!friend.equals(mySelf)) {
+            if (friendList.contains(friend)) {
+                friendList.remove(friend);
+                callingTheCallbacks();
+                new deleteFromDB().execute(friend);
             }
-            new deleteFromDB().execute(friend);
         }
     }
 
@@ -264,20 +367,20 @@ public class persistentFriends extends BroadcastReceiver {
         boolean found = false;
         miataruFriend friend = null;
 
-        for (int x = 0; x < friendList.size(); x++) {
-            friend = friendList.get(x);
-            if (friend.getUUID().compareTo(UUID) == 0) {
-                friendList.remove(x);
-                break;
+        if ( myID != null && myID.compareTo(UUID) != 0 ) {
+            for (int x = 0; x < friendList.size(); x++) {
+                friend = friendList.get(x);
+                if (friend.getUUID().compareTo(UUID) == 0) {
+                    friendList.remove(x);
+                    break;
+                }
             }
-        }
 
-        if (friend != null) {
-            //DBRemoveFriend(friend);
-            for (int x = 0; x < callbacks.size(); x++) {
-                callbacks.get(x).refreshFriendInfo();
+            if (friend != null) {
+                //DBRemoveFriend(friend);
+                callingTheCallbacks();
+                new deleteFromDB().execute(friend);
             }
-            new deleteFromDB().execute(friend);
         }
     }
 
@@ -381,16 +484,27 @@ public class persistentFriends extends BroadcastReceiver {
                 if (ID.compareTo(oldUUIDs[n]) == 0) {
                     // Same UUID found. Copy info in case it has changed.
                     newID = false;
-                    if (friend.getAlias() != null && friend.getAlias().length() > 0 && friend.getAlias().compareTo(oldFriends.get(n).getAlias()) != 0) {
+                    if (friend.getAlias() != null && friend.getAlias().length() > 0 && friend.getAlias() != null && friend.getAlias().compareTo(oldFriends.get(n).getAlias()) != 0) {
                         oldFriends.get(n).setAlias(friend.getAlias());
                         dataChanged = true;
                     }
                     if (friend.hasLocation()) {
-                        if (MainActivity.Debug > 10) {
-                            Log.v(LOGTAG, "mergeLists - friend exists. adding the info");
+                        if ( oldFriends.get(n).hasLocation() ) {
+                            if ( friend.getTimeStamp() > oldFriends.get(n).getTimeStamp() ) {
+                                // We have a newer location
+                                if (MainActivity.Debug > 10) { Log.v(LOGTAG, "mergeLists - friend exists. updating the location info"); }
+                                oldFriends.get(n).setLocation(friend.getLocation());
+                                dataChanged = true;
+                            } else {
+                                // We have the a location, but is not newer that the current one
+                                // nothing to do then....
+                            }
+                        } else {
+                            // We have a location and we didn't have any until now
+                            if (MainActivity.Debug > 10) { Log.v(LOGTAG, "mergeLists - friend exists. adding location info"); }
+                            oldFriends.get(n).setLocation(friend.getLocation());
+                            dataChanged = true;
                         }
-
-                        oldFriends.get(n).setLocation(friend.getLocation());
                     }
                     if (MainActivity.Debug > 5) {
                         Log.v(LOGTAG, "mergeLists updating " + friend.getShowText());
@@ -465,35 +579,34 @@ public class persistentFriends extends BroadcastReceiver {
             //friendList.clear();
             miataruFriend loc;
 
-            loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"), "Myself");
+            //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"), "Myself");
             //loc.setLocation(1,1,5,System.currentTimeMillis());
-            internalFriends.add(loc);
+            //internalFriends.add(loc);
 
-            loc = new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "Demo Miataru device");
-            //loc.setLocation(1, 1, 5, System.currentTimeMillis() - 60 * 60 * 3 * 1000);
-            internalFriends.add(loc);
+            internalFriends.add(new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "Demo Miataru device"));
+
+            if ( mySelf != null ) {
+                if (mySelf.getUUID().compareTo("3dcfbbe1-8018-4a88-acec-9d2aa6643e13") == 0) {
+                    internalFriends.add(new miataruFriend("7087c995-c688-43c8-a291-3ef25340179e", "My test device"));
+                } else {
+                    internalFriends.add(new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "My test device"));
+                }
+            }
 
             loc = new miataruFriend("00000000-0000-0000-0000-000000000001", "Mendillorri");
-            loc.setLocation(42.813323, -1.612299, Float.valueOf(30));
+            loc.setLocation(42.813323, -1.612299, 30, System.currentTimeMillis());
             internalFriends.add(loc);
 
             loc = new miataruFriend("00000000-0000-0000-0000-000000000002", "CarlosV");
-            loc.setLocation(43.364981, -1.793445, Float.valueOf(30));
+            loc.setLocation(43.364981, -1.793445, 100, System.currentTimeMillis());
             internalFriends.add(loc);
 
             //loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "Test handy");
             //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 93 * 1000);
             //internalFriends.add(loc);
 
-            internalFriends.add(new miataruFriend("7b8e6e0ee5296db345162dc2ef652c1350761823", "Miataru1"));
-            internalFriends.add(new miataruFriend("b0d3c313f97e199eb733e5e9846a3c2c53b4aff4", "Miataru2"));
-            internalFriends.add(new miataruFriend("d9faf945cdcb11350bb7a4ccbb2c84138fe4ba54", "Miataru3"));
-            internalFriends.add(new miataruFriend("e64a3682ce5a44cff5d9aeaf4c4697c26fa4f977", "Miataru4"));
-
             loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652");
-            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 60 * 3 * 1000);
             internalFriends.add(loc);
-
 
             //loc = new miataruFriend("99999999-9999-9999-9999-999999999999", Long.toString(System.currentTimeMillis()));
             //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 10 * 1000);
@@ -518,6 +631,9 @@ public class persistentFriends extends BroadcastReceiver {
                     Log.v(LOGTAG, "persistentFriends - Merging " + friendsFromDB.size() + " to " + friendList.size());
                 }
 
+                if ( mySelf != null ) {
+                    friendsFromDB.add(mySelf);
+                }
                 newData = mergeLists(friendList, friendsFromDB, false);
             } else {
                 friendList.clear();
@@ -537,9 +653,7 @@ public class persistentFriends extends BroadcastReceiver {
 
             // call all the callbacks
             if (newData) {
-                for (int x = 0; x < callbacks.size(); x++) {
-                    callbacks.get(x).refreshFriendInfo();
-                }
+                callingTheCallbacks();
             }
         }
     }
@@ -588,16 +702,14 @@ public class persistentFriends extends BroadcastReceiver {
             } else {
                 Toast.makeText(MainActivity.getAppContext(), "Friend could not be deleted", Toast.LENGTH_SHORT).show();
                 friendList.add(deletedFriend);
-                for (int x = 0; x < callbacks.size(); x++) {
-                    callbacks.get(x).refreshFriendInfo();
-                }
+                callingTheCallbacks();
             }
         }
     }
 
     //
     //
-    // Asynchronus tasks for Miataru operations
+    // Asynchronous tasks for Miataru operations
     //
     //
     @Override
@@ -625,9 +737,7 @@ public class persistentFriends extends BroadcastReceiver {
 
         if (changes) {
             // do all the callbacks
-            for (int x = 0; x < callbacks.size(); x++) {
-                callbacks.get(x).refreshFriendInfo();
-            }
+            callingTheCallbacks();
         }
 
         //this.close();

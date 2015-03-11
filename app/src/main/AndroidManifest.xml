@@ -16,11 +16,20 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Check if we are connected to wifi or 3G -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Detect device boot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <permission
         android:name="com.example.topatu.permission.MAPS_RECEIVE"
         android:protectionLevel="signature"/>
     <uses-permission android:name="com.example.topatu.permission.MAPS_RECEIVE"/>
+
+    <service
+        android:name="TopatuLocationUpload"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/service_name"
+        >
+    </service>
 
     <application
         android:allowBackup="true"
@@ -30,11 +39,19 @@
 
         <!-- <uses-library android:name="com.google.android.maps" /> -->
 
+        <receiver android:name=".receiverOnBoot" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        <!--
         <receiver android:name=".persistentFriends" android:exported="false">
             <intent-filter>
                 <action android:name="com.example.topatu.friendlocationinformation" />
             </intent-filter>
         </receiver>
+        -->
         <receiver android:name=".receiverPullFriendData">
         </receiver>
 

@@ -1,35 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/map_fragment"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
--->
+    <!--
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/map_fragment"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
-
-    <Spinner
-        android:id="@+id/map_friend_show"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:prompt="@string/frame_map_spinner_defaultmessage"
-        android:textSize="32sp" />
+    -->
 
     <!-- android:apiKey="0HD__0DaIgzDb8nHjJsuggkHlW1MofMwg-xVCpA" -->
     <!-- android:apiKey="AIzaSyAEqWyBuQ4fC1Y1cWs5-OTZ8aAWyk9iBRU" -->
     <com.google.android.gms.maps.MapView
         android:id="@+id/map_googlemap"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:clickable="true"
         android:enabled="true" />
 
-</LinearLayout>
-<!--
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_margin="10dp"
+        android:background="@drawable/layout_rounded_bg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <Spinner
+            android:id="@+id/map_friend_show"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:prompt="@string/frame_map_spinner_defaultmessage"
+            android:textSize="32sp" />
+    </LinearLayout>
+    <!--
+    </LinearLayout>
+    -->
 </FrameLayout>
--->
