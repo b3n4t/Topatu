@@ -24,12 +24,14 @@
         android:protectionLevel="signature"/>
     <uses-permission android:name="com.example.topatu.permission.MAPS_RECEIVE"/>
 
+    <!--
     <service
-        android:name="TopatuLocationUpload"
+        android:name="serviceLocationUploader"
         android:icon="@drawable/ic_launcher"
         android:label="@string/service_name"
         >
     </service>
+    -->
 
     <application
         android:allowBackup="true"
@@ -38,6 +40,8 @@
         android:theme="@style/AppTheme" >
 
         <!-- <uses-library android:name="com.google.android.maps" /> -->
+
+        <service android:name=".serviceLocationUploader" />
 
         <receiver android:name=".receiverOnBoot" android:exported="false">
             <intent-filter>
@@ -52,8 +56,8 @@
             </intent-filter>
         </receiver>
         -->
-        <receiver android:name=".receiverPullFriendData">
-        </receiver>
+        <receiver android:name=".receiverPullFriendData" />
+        <receiver android:name=".receiverSaveLocation" />
 
         <activity
             android:name=".MainActivity"

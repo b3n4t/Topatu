@@ -330,6 +330,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
             if (textDisplay == null) {
                 textDisplay = new TextView(context);
+            } else {
                 Log.v(LOGTAG,"Recycling View from " + textDisplay.getText());
             }
 

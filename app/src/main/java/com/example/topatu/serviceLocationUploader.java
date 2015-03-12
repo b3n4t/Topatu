@@ -1,5 +1,7 @@
 package com.example.topatu;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -32,6 +34,11 @@ public class serviceLocationUploader extends Service {
     private int latestInstance;
     private BroadcastReceiver alarmReceiver;
 
+    private static AlarmManager alarmMgr;
+    private static PendingIntent alarmIntent;
+    private static BroadcastReceiver friendLocationReceiver;
+
+
     /**
      * Simply return null, since our Service will not be communicating with
      * any other components. It just does its work silently.
@@ -45,6 +52,7 @@ public class serviceLocationUploader extends Service {
     public void onCreate() {
         super.onCreate();
 
+        Log.v(LOGTAG,"serviceLocationUploader - onCreate");
 
         alarmReceiver = new BroadcastReceiver() {
             @Override
@@ -61,18 +69,33 @@ public class serviceLocationUploader extends Service {
         //TODO do something useful
         String initiator = intent.getStringExtra("StartedFrom");
         if ( initiator != null ) {
-            Log.v(LOGTAG, "Service started from " + initiator);
+            Log.v(LOGTAG, "serviceLocationUploader - onStartCommand: Service started from " + initiator);
         } else {
-            Log.v(LOGTAG,"Service started from unknown source");
+            Log.v(LOGTAG,"serviceLocationUploader - onStartCommand: Service started from unknown source");
         }
 
         latestInstance = startId;
+
+        if (alarmMgr == null) {
+            alarmMgr = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+        }
+        if (alarmIntent == null) {
+            Intent newIntent = new Intent(MainActivity.getAppContext(), receiverSaveLocation.class);
+            alarmIntent = PendingIntent.getBroadcast(MainActivity.getAppContext(), 0, newIntent, 0);
+        }
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, 5000, alarmIntent);
+
 
         return Service.START_NOT_STICKY;
     }
 
     public void stopService() {
         stopSelfResult(latestInstance);
+    }
+
+    @Override
+    public void onDestroy() {
+        alarmMgr.cancel(alarmIntent);
     }
 
     private class MiataruPut extends AsyncTask<Void,Void,String> {

@@ -245,7 +245,6 @@ public class persistentFriends extends BroadcastReceiver {
         }
 
         if (alarmMgr == null) {
-            //alarmMgr = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
             alarmMgr = (AlarmManager) MainActivity.getAppContext().getSystemService(Context.ALARM_SERVICE);
         }
         if (alarmIntent == null) {
@@ -317,7 +316,7 @@ public class persistentFriends extends BroadcastReceiver {
     private void myLocationChanged (Location location) {
         Log.v(LOGTAG, "Getting new location from " + location.getProvider());
         if ( mySelf != null ) {
-            // We need to processing here, but meanwhile....
+            // TODO We need to processing here, but meanwhile....
 
             mySelf.setLocation(location);
             callingTheCallbacks();
@@ -329,6 +328,14 @@ public class persistentFriends extends BroadcastReceiver {
     // General methods to add remove friends from DB
     //
     //
+    public static String getMyID () {
+        return myID;
+    }
+
+    public static miataruFriend getMySelf () {
+        return mySelf;
+    }
+
     public void addFriend(String UUID) {
         this.addFriend(UUID, null);
     }
