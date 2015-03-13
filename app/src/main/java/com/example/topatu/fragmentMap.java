@@ -74,6 +74,8 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
         myMap.setOnCameraChangeListener(this);
         myMap.setOnMarkerClickListener(this);
+        myMap.setInfoWindowAdapter(new multiLineSpinner());
+
 
         myMap.setMyLocationEnabled(false);
         myMap.getUiSettings().setZoomControlsEnabled(true);
@@ -96,7 +98,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
             if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size()); }
         }
         friendName.setOnItemSelectedListener(this);
-        friendName.setBackgroundColor(0xFFFFFFFF);
+        //friendName.setBackgroundColor(Color.TRANSPARENT);
         //Drawable dr = friendName.getBackground();
         //dr.setAlpha(0xF0);
         //dr.setAlpha(255);
@@ -177,6 +179,8 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     }
     public boolean onMarkerClick (Marker marker) {
 
+        if ( centerOnFriend ) { return false; }
+
         if ( MainActivity.Debug > 0 ) { Log.e(LOGTAG,"fragmentMap - onMarkerClick"); }
         centerOnFriend = true;
 
@@ -209,7 +213,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         if ( friendMarker != null ) {
             friendMarker.setPosition(activeFriend.getLatLng());
             friendMarker.setTitle(activeFriend.getShowText());
-            friendMarker.setSnippet(activeFriend.getSecondaryText());
+            friendMarker.setSnippet(activeFriend.getLongDescription());
         }
         if ( friendCircle != null ) {
             friendCircle.setCenter(activeFriend.getLatLng());
@@ -259,20 +263,22 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
                 if (friendMarker == null) {
                     friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
                     friendMarker.setDraggable(false);
-                } else {
+                }
+                if (friendMarker != null) {
+                    friendMarker.setVisible(false);
                     friendMarker.setPosition(activeFriend.getLatLng());
                     friendMarker.setTitle(activeFriend.getShowText());
-                    friendMarker.setSnippet(activeFriend.getSecondaryText());
-
+                    friendMarker.setSnippet(activeFriend.getLongDescription());
                     friendMarker.setVisible(true);
                 }
                 if (friendCircle == null) {
                     friendCircle = myMap.addCircle(activeFriend.getCircleOptions());
-                } else {
+                }
+                if (friendCircle != null) {
+                    friendCircle.setVisible(false);
                     friendCircle.setCenter(activeFriend.getLatLng());
                     friendCircle.setRadius(activeFriend.getAccuracy());
-
-                    friendCircle.setVisible(true);
+                        friendCircle.setVisible(true);
                 }
 
                 // Center the camera in the selected friend
@@ -330,15 +336,17 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
 
             if (textDisplay == null) {
                 textDisplay = new TextView(context);
+                //textDisplay.setTextColor(R.color.topatu_textcolor);
+                //textDisplay.setBackgroundResource(R.color.topatu_backgroundtransparent);
             } else {
                 Log.v(LOGTAG,"Recycling View from " + textDisplay.getText());
             }
 
-            textDisplay.setText(values.get(position).getShowText());
-            textDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            textDisplay.setTextColor(getResources().getColor(R.color.topatu_textcolor));
             textDisplay.setBackgroundColor(Color.TRANSPARENT);
-            //textDisplay.setPadding(5,5,5,5);
-            //textDisplay.setBackgroundResource(R.drawable.layout_rounded_bg);
+            textDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            textDisplay.setPadding(3,3,3,3);
+            textDisplay.setText(values.get(position).getShowText());
 
             return textDisplay;
         }
@@ -366,6 +374,37 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
             update.setText(friend.getUpdateTime());
 
             return rowView;
+        }
+    }
+
+    //
+    //
+    // Adapter to be able to show tooltips with several lines in googleMap
+    //
+    //
+    private class multiLineSpinner implements GoogleMap.InfoWindowAdapter {
+        private final TextView mymarkerview;
+
+        multiLineSpinner() {
+            mymarkerview = new TextView(MainActivity.getAppContext());
+        }
+
+        public View getInfoWindow(Marker marker) {
+            render(marker, mymarkerview);
+            return mymarkerview;
+        }
+
+        public View getInfoContents(Marker marker) {
+            return null;
+        }
+
+        private void render(Marker marker, View view) {
+            // Add the code to set the required values
+            // for each element in your custominfowindow layout file
+            mymarkerview.setTextColor(getResources().getColor(R.color.topatu_textcolor));
+            mymarkerview.setText(activeFriend.getLongDescription());
+            mymarkerview.setBackgroundResource(R.drawable.layout_rounded_bg);
+
         }
     }
 }

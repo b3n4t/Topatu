@@ -43,7 +43,7 @@ public class receiverSaveLocation extends BroadcastReceiver {
 
         if ( myID.compareTo("No own UUID!!!!!!") == 0 ) { return; }
 
-        LocationManager locationManager = (LocationManager) MainActivity.getAppContext().getSystemService(Context.LOCATION_SERVICE);
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), false));
 
         if ( location == null ) { return; }
@@ -84,7 +84,7 @@ public class receiverSaveLocation extends BroadcastReceiver {
                 //miataruheader.accumulate("LocationDataRetentionTime", String.valueOf(15));
 
                 miataruheader.accumulate("EnableLocationHistory", "False");
-                miataruheader.accumulate("LocationDataRetentionTime", "60");
+                miataruheader.accumulate("LocationDataRetentionTime", "10000");
 
                 jsonrequest = new JSONObject();
                 jsonrequest.accumulate("MiataruConfig", miataruheader);

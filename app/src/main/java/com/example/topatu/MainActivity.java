@@ -47,6 +47,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     private persistentFriends friends;
     private int currentTab=0;
 
+    private Intent uploadService;
 
     public static Context context;
     public static int Debug = 3;
@@ -81,10 +82,10 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
                 editor.putString("my_id", MyID);
                 editor.apply();
             } else {
-                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
+                if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
             }
         } else {
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
+            if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
 
         }
 
@@ -158,9 +159,9 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         //
         // Start the background service
         //
-        Intent service = new Intent(context, serviceLocationUploader.class);
-        service.putExtra("StartedFrom","MainActivity");
-        context.startService(service);
+        uploadService = new Intent(context, serviceLocationUploader.class);
+        uploadService.putExtra("StartedFrom","MainActivity");
+        context.startService(uploadService);
     }
 
     //
@@ -184,8 +185,14 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         friends = null;
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
 
-/*
+        context.stopService(uploadService);
+    }
+
+    /*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -207,7 +214,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
 
         return super.onOptionsItemSelected(item);
     }
-*/
+    */
     @Override
     public void onTabSelected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
         // When the given tab is selected, switch to the corresponding page in

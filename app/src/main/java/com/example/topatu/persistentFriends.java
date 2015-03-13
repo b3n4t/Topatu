@@ -72,8 +72,8 @@ public class persistentFriends extends BroadcastReceiver {
         }
 
         if ( myID == null ) {
-            myID = PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id","No own UUID!!!!!!");
-            if ( myID.compareTo("No own UUID!!!!!!") == 0 ) { myID = null; }
+            myID = PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id",null);
+            //if ( myID.compareTo("No own UUID!!!!!!") == 0 ) { myID = null; }
         }
         if ( myID != null && mySelf == null) {
             mySelf = new miataruFriend(myID, "Myself");
@@ -592,11 +592,15 @@ public class persistentFriends extends BroadcastReceiver {
 
             internalFriends.add(new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "Demo Miataru device"));
 
-            if ( mySelf != null ) {
-                if (mySelf.getUUID().compareTo("3dcfbbe1-8018-4a88-acec-9d2aa6643e13") == 0) {
-                    internalFriends.add(new miataruFriend("7087c995-c688-43c8-a291-3ef25340179e", "My test device"));
-                } else {
-                    internalFriends.add(new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "My test device"));
+            if ( myID != null && myID.length() > 0 ) {
+                if (myID.compareTo("07b2a900-6b6b-4e38-9679-6f4610bbb076") != 0) {
+                    internalFriends.add(new miataruFriend("07b2a900-6b6b-4e38-9679-6f4610bbb076", "My test (s duos)"));
+                }
+                if (myID.compareTo("7087c995-c688-43c8-a291-3ef25340179e") != 0) {
+                    internalFriends.add(new miataruFriend("7087c995-c688-43c8-a291-3ef25340179e", "My test (what??)"));
+                }
+                if (myID.compareTo("3dcfbbe1-8018-4a88-acec-9d2aa6643e13") != 0) {
+                    internalFriends.add(new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "My test (note)"));
                 }
             }
 

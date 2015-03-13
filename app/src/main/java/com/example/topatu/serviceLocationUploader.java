@@ -32,7 +32,6 @@ import java.io.InputStreamReader;
 public class serviceLocationUploader extends Service {
     private final static String LOGTAG = "TopatuUploadLog";
     private int latestInstance;
-    private BroadcastReceiver alarmReceiver;
 
     private static AlarmManager alarmMgr;
     private static PendingIntent alarmIntent;
@@ -53,14 +52,6 @@ public class serviceLocationUploader extends Service {
         super.onCreate();
 
         Log.v(LOGTAG,"serviceLocationUploader - onCreate");
-
-        alarmReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                // Called by periodic alarm
-                // Get current location and upload to DB
-            }
-        };
 
     }
 
@@ -83,13 +74,14 @@ public class serviceLocationUploader extends Service {
             Intent newIntent = new Intent(MainActivity.getAppContext(), receiverSaveLocation.class);
             alarmIntent = PendingIntent.getBroadcast(MainActivity.getAppContext(), 0, newIntent, 0);
         }
-        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, 5000, alarmIntent);
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, 30000, alarmIntent);
 
 
         return Service.START_NOT_STICKY;
     }
 
     public void stopService() {
+        alarmMgr.cancel(alarmIntent);
         stopSelfResult(latestInstance);
     }
 

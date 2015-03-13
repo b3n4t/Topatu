@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#F0F0F0F0"/>
-    <stroke android:width="1dip" android:color="#B1BCBE" />
+    <solid android:color="@color/topatu_backgroundtransparent"/>
+<!--    <stroke android:width="1dip" android:color="#B1BCBE" /> -->
+    <stroke android:width="1dip" android:color="@color/topatu_bordercolor" />
     <corners android:radius="5dip"/>
     <padding android:left="4dip" android:top="4dip" android:right="4dip" android:bottom="4dip" />
 </shape>

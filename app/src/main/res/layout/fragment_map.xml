@@ -26,15 +26,19 @@
         android:layout_margin="10dp"
         android:background="@drawable/layout_rounded_bg"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" >
+        android:layout_height="wrap_content"
+        >
 
-        <Spinner
-            android:id="@+id/map_friend_show"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:prompt="@string/frame_map_spinner_defaultmessage"
-            android:textSize="32sp" />
+    <Spinner
+        android:id="@+id/map_friend_show"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/topatu_transparent"
+        android:prompt="@string/frame_map_spinner_defaultmessage"
+        android:drawSelectorOnTop="true"
+        android:textSize="32sp" />
+        <!-- android:popupBackground="@drawable/layout_rounded_bg" -->
+
     </LinearLayout>
     <!--
     </LinearLayout>

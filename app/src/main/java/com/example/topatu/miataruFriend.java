@@ -128,6 +128,20 @@ public class miataruFriend implements Parcelable {
         return "";
     }
 
+    public String getLongDescription () {
+        String text;
+        text = UUID;
+        if ( Alias != null && Alias.length() > 0 ) {
+            text = text + "\nAlias: " + Alias;
+        }
+        if ( hasLocation ) {
+            text = text + "\n" + String.format( "Lon: %.2f; Lat: %.2f (%.0f)", Longitude, Latitude, Accuracy );
+        }
+        text = text + "\nLast updated: " + getUpdateTime();
+
+        return text;
+    }
+
     public String getUpdateTime () {
         if ( ! hasLocation || TimeStamp < 0 ) { return "N/A"; }
 
