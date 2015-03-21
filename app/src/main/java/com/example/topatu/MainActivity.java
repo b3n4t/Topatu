@@ -1,5 +1,7 @@
 package com.example.topatu;
 
+import android.app.Fragment;
+import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -9,151 +11,112 @@ import android.net.NetworkInfo;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.Menu;
+import android.widget.ArrayAdapter;
+import android.widget.SpinnerAdapter;
 
-import java.util.Locale;
+import java.util.ArrayList;
 import java.util.UUID;
 
-public class MainActivity extends ActionBarActivity implements ActionBar.TabListener {
+//
 
-    /**
-     * The {@link android.support.v4.view.PagerAdapter} that will provide
-     * fragments for each of the sections. We use a
-     * {@link android.support.v4.app.FragmentPagerAdapter} derivative, which will keep every
-     * loaded fragment in memory. If this becomes too memory intensive, it
-     * may be best to switch to a
-     * {@link android.support.v4.app.FragmentStatePagerAdapter}.
-     */
-    SectionsPagerAdapter mSectionsPagerAdapter;
+/**
+ * Created by Ixa on 20/03/2015.
+ */
+public class MainActivity extends ActionBarActivity implements ActionBar.OnNavigationListener {
 
-    /**
-     * The {@link android.support.v4.view.ViewPager} that will host the section contents.
-     */
-    ViewPager mViewPager;
-
-    private static String LOGTAG = "TopatuLog";
-    private String PREFS_NAME = null;
-    private static String MyID = null;
-    private persistentFriends friends;
-    private int currentTab=0;
-
-    private Intent uploadService;
+    private static final String LOGTAG = "TopatuLog";
+    private static final String STATE_ACTIVE_FRAGMENT = "Topatu_MainActivity_ActiveFragment";
+    private static final String STATE_NUM_FRAGMENTS = "Topatu_MainActivity_NumFragment";
+    private static final String STATE_FRAGMENT_STATE = "Topatu_MainActivity_FragmentState";
+    private static String[] fragment_titles;
 
     public static Context context;
     public static int Debug = 3;
 
+    private int prevFragmentNum = -1;
+    private Fragment prevFragment = null;
+    private ArrayList<Bundle> fragSavedStates = new ArrayList<>();
+    private Bundle creationState;
+
+    private Intent uploadService;
+    private persistentFriends friends;
+    private topatuConfig myConfig;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        MainActivity.context = getApplicationContext();
-        if ( MainActivity.Debug > 2 ) {
-            Log.v(LOGTAG, "MainActivity - onCreate");
-        }
 
-        Log.v(LOGTAG,"*** Power: "+MainActivity.isPowerConnected());
-        Log.v(LOGTAG,"*** Wifi: "+MainActivity.isWifiActive());
+        creationState = savedInstanceState;
 
-        if (savedInstanceState != null) {
-            MyID = savedInstanceState.getString("MyID", null);
-        }
         //
-        // On first run there will be no Device ID generaten. Create a new one.
+        // Check for UUID
         //
-        //PREFS_NAME  = getPreferenceManager().getSharedPreferencesName();
+        myConfig = new topatuConfig(this);
+
+        String MyID = myConfig.getID();
+
         if (MyID == null) {
-            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
-            // my_id
-            MyID = settings.getString("my_id", null);
             if (MyID == null) {
-                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "No UUID found"); }
+                if (MainActivity.Debug > 2) {
+                    Log.v(LOGTAG, "No UUID found");
+                }
                 MyID = UUID.randomUUID().toString();
-                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "New one: " + MyID); }
-                SharedPreferences.Editor editor = settings.edit();
-                editor.putString("my_id", MyID);
+                //MyID = "07b2a900-6b6b-4e38-9679-6f4610bbb076";
+                if (MainActivity.Debug > 2) {
+                    Log.v(LOGTAG, "New one: " + MyID);
+                }
+                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+                editor.putString(getString(R.string.settings_my_id), MyID);
+                //editor.putString(getString(R.string.settings_my_server), );
                 editor.apply();
-            } else {
-                if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG, "Reading from config UUID: " + MyID); }
             }
-        } else {
-            if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG, "App still running UUID: " + MyID); }
-
         }
 
         //
-        // Create an instance of persistentFriends
+        // Load the screen
+        //
+        MainActivity.context = getApplicationContext();
+
+        setContentView(R.layout.fragment_placehonder);
+
+        //ActionBar bar = getActionBar();
+        ActionBar bar = getSupportActionBar();
+
+        fragment_titles = getResources().getStringArray(R.array.fragments);
+
+        //ArrayAdapter<String> actionbar_adapter = new ArrayAdapter<String>(bar.getThemedContext(),R.layout.actionbar_list_item,fragment_titles);
+        SpinnerAdapter mySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.fragments, android.R.layout.simple_spinner_dropdown_item);
+
+        bar.setDisplayShowTitleEnabled(false);
+        bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+        bar.setListNavigationCallbacks(mySpinnerAdapter, this);
+
+
+        //
+        // Get a persistentFriend objecet instance
         //
         friends = new persistentFriends();
+
         if (savedInstanceState != null) {
-            if ( MainActivity.Debug > 2 ) {
-                Log.v(LOGTAG, "MainActivity - trying to restore friendlist");
-                Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size());
-            }
             persistentFriends.onRestoreInstanceState(savedInstanceState);
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "MainActivity -             current friends: " + persistentFriends.getFriends().size()); }
-        }
 
-
-        //
-        // Load main screen
-        //
-        setContentView(R.layout.activity_main);
-
-        //
-        // Set up the action bar.
-        //
-        final ActionBar actionBar = getSupportActionBar();
-        actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
-        actionBar.setDisplayShowTitleEnabled(false);
-
-        // Create the adapter that will return a fragment for each of the three
-        // primary sections of the activity.
-        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
-
-        // Set up the ViewPager with the sections adapter.
-        mViewPager = (ViewPager) findViewById(R.id.pager);
-        mViewPager.setAdapter(mSectionsPagerAdapter);
-
-        // When swiping between different sections, select the corresponding
-        // tab. We can also use ActionBar.Tab#select() to do this if we have
-        // a reference to the Tab.
-        mViewPager.setOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
-            @Override
-            public void onPageSelected(int position) {
-                currentTab = position;
-                actionBar.setSelectedNavigationItem(position);
+            int preFrag = savedInstanceState.getInt(STATE_ACTIVE_FRAGMENT,-1);
+            if ( preFrag != -1 ) {
+                bar.setSelectedNavigationItem(preFrag);
             }
-        });
-
-        // For each of the sections in the app, add a tab to the action bar.
-        for (int i = 0; i < mSectionsPagerAdapter.getCount(); i++) {
-            // Create a tab with text corresponding to the page title defined by
-            // the adapter. Also specify this Activity object, which implements
-            // the TabListener interface, as the callback (listener) for when
-            // this tab is selected.
-            actionBar.addTab(
-                    actionBar.newTab()
-                            .setText(mSectionsPagerAdapter.getPageTitle(i))
-                            .setTabListener(this));
-        }
-
-        if (savedInstanceState != null) {
-            // Go to previously selected tab
-            int pos;
-            pos = savedInstanceState.getInt("TopatuSelecetTab", -1);
-            if (pos != -1) {
-                mViewPager.setCurrentItem(pos);
-                actionBar.setSelectedNavigationItem(pos);
+            int num = savedInstanceState.getInt(STATE_NUM_FRAGMENTS,-1);
+            if ( num > 0 ) {
+                for (int x = 0;x < num; x++) {
+                    fragSavedStates.add(x,savedInstanceState.getBundle(STATE_FRAGMENT_STATE+x));
+                }
             }
+        } else {
+            bar.setSelectedNavigationItem(1);
         }
 
         //
@@ -164,6 +127,10 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         context.startService(uploadService);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        return true;
+    }
     //
     //
     // save persistentFriends
@@ -173,9 +140,19 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"MainActivity - onSaveInstanceState - saving friend information"); }
-        outState.putString("MyID", MyID);
-        outState.putInt("TopatuSelecetTab",currentTab);
+        //outState.putString("MyID", MyID);
         persistentFriends.onSaveInstanceState(outState);
+        outState.putInt(STATE_ACTIVE_FRAGMENT,prevFragmentNum);
+
+        // Save the state of the fragments
+        //
+        // First save the state of the active fragment
+        prevFragment.onSaveInstanceState(fragSavedStates.get(prevFragmentNum));
+        // Now save all in the bundle
+        outState.putInt(STATE_NUM_FRAGMENTS,fragSavedStates.size());
+        for (int x = 0;x < fragSavedStates.size(); x++) {
+            outState.putBundle(STATE_FRAGMENT_STATE+x,fragSavedStates.get(x));
+        }
     }
 
     @Override
@@ -192,141 +169,67 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         context.stopService(uploadService);
     }
 
-    /*
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+    //
+    //
+    // fragment selector listener
+    //
+    //
+    public boolean onNavigationItemSelected(int itemPosition, long itemId) {
+        // Change the fragment
+
+        Log.v(LOGTAG, "MainActivity - onNavigationItemSelected - " + itemId);
+
+        // Check if this is not the first time we run this method
+        if ( prevFragmentNum != -1 ) {
+            Bundle fragState;
+
+            // Read the bundle from the Array. If it doesn't exit create a new one and add to array
+            try {
+                fragState = fragSavedStates.get(prevFragmentNum);
+            } catch ( IndexOutOfBoundsException e ) {
+                fragState = new Bundle();
+                for (int x = fragSavedStates.size(); x<prevFragmentNum ;x++ ) {
+                    fragState = new Bundle();
+                    fragSavedStates.add(x,fragState);
+                }
+            }
+
+            // Set bundle to fragment
+            prevFragment.onSaveInstanceState(fragState);
+        }
+
+        Fragment newFragment;
+
+        // Choose which fragment we should show
+        switch(itemPosition) {
+            case 0: newFragment = new fragmentMap();break;
+            case 1: newFragment = new fragmentFriendView();break;
+            //case 2: newFragment = new fragmentTopatuSettings();break;
+            default: newFragment = new fragmentTopatuSettings();break;
+        }
+
+        // if a state bundle exist add it to the fragment
+        try {
+            newFragment.setArguments(fragSavedStates.get(itemPosition));
+        } catch ( IndexOutOfBoundsException e ) {
+            if ( prevFragmentNum == -1 ) {
+                newFragment.setArguments(creationState);
+            }
+        }
+
+        // Replace the visible fragment
+        FragmentTransaction transaction = getFragmentManager().beginTransaction();
+        // Replace whatever is in the fragment_container view with this fragment,
+        // and add the transaction to the back stack
+        transaction.replace(R.id.fragment_placeholder, newFragment);
+        transaction.addToBackStack(null);
+        transaction.commit();
+
+        // Save the current fragment and fragment number
+        prevFragment = newFragment;
+        prevFragmentNum = itemPosition;
+
         return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-    */
-    @Override
-    public void onTabSelected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
-        // When the given tab is selected, switch to the corresponding page in
-        // the ViewPager.
-        currentTab = tab.getPosition();
-        mViewPager.setCurrentItem(currentTab);
-    }
-
-    @Override
-    public void onTabUnselected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
-    }
-
-    @Override
-    public void onTabReselected(ActionBar.Tab tab, FragmentTransaction fragmentTransaction) {
-    }
-
-    /**
-     * A {@link android.support.v4.app.FragmentPagerAdapter} that returns a fragment corresponding to
-     * one of the sections/tabs/pages.
-     */
-    public class SectionsPagerAdapter extends FragmentPagerAdapter {
-
-        public SectionsPagerAdapter(FragmentManager fm) {
-            super(fm);
-        }
-
-        @Override
-        public Fragment getItem(int position) {
-            // getItem is called to instantiate the fragment for the given page.
-            // Return a PlaceholderFragment (defined as a static inner class below).
-            //if ( MainActivity.Debug > 2 ) { Log.v("Topatu", "SectionsPagerAdapter - getItem ("+position+")"); }
-            Fragment f;
-            switch(position) {
-                case 0: f = fragmentFriendView.newInstance();break;
-                case 1: f = fragmentMap.newInstance();break;
-                case 2: f = fragmentSettings.newInstance();break;
-                default: f = PlaceholderFragment.newInstance(position + 1);break;
-            }
-
-            return f;
-        }
-
-        @Override
-        public int getCount() {
-            // Show 3 total pages.
-            return 3;
-        }
-
-        @Override
-        public CharSequence getPageTitle(int position) {
-            Locale l = Locale.getDefault();
-            switch (position) {
-                case 0:
-                    return getString(R.string.title_section_friends).toUpperCase(l);
-                case 1:
-                    return getString(R.string.title_section_map).toUpperCase(l);
-                case 2:
-                    return getString(R.string.title_section_settings).toUpperCase(l);
-            }
-            return null;
-        }
-    }
-
-
-
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    private static class PlaceholderFragment extends Fragment {
-        /**
-         * The fragment argument representing the section number for this
-         * fragment.
-         */
-        private static final String ARG_SECTION_NUMBER = "section_number";
-
-        /**
-         * Returns a new instance of this fragment for the given section
-         * number.
-         */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - newInstance"); }
-            PlaceholderFragment fragment = new PlaceholderFragment();
-            Bundle args = new Bundle();
-            args.putInt(ARG_SECTION_NUMBER, sectionNumber);
-            fragment.setArguments(args);
-            return fragment;
-        }
-
-//        public PlaceholderFragment() {
-//        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onCreateView"); }
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            //TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            //textView.setText("Tab "+this.getArguments().getInt(ARG_SECTION_NUMBER,9));
-            return rootView;
-        }
-/*
-        @Override
-        public void onPause() {
-            super.onPause();
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onPause"); }
-        }
-
-        @Override
-        public void onResume() {
-            super.onResume();
-            if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "placeholderFragment - onResume"); }
-        }
-        */
     }
 
     //
@@ -342,7 +245,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         ConnectivityManager connManager = (ConnectivityManager) MainActivity.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo mWifi = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
-         return mWifi.isConnected();
+        return mWifi.isConnected();
     }
 
     public static boolean isPowerConnected () {

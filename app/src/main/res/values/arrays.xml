@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
+    Values for all available Fragment
+    -->
+    <string-array name="fragments">
+        <item>Map</item>
+        <item>Friends</item>
+        <item>Settings</item>
+   </string-array>
+
+    <!--
     Values for update frequency
     -->
     <string-array name="updatefreq">
+        <item>15 seconds</item>
         <item>1 minute</item>
         <item>5 minutes</item>
         <item>15 minutes</item>
@@ -12,23 +22,24 @@
         <item>1 days</item>
     </string-array>
     <string-array name="updatefreqvalues">
-        <item>1</item>
-        <item>5</item>
         <item>15</item>
         <item>60</item>
-        <item>480</item>
-        <item>1440</item>
+        <item>300</item>
+        <item>900</item>
+        <item>3600</item>
+        <item>28800</item>
+        <item>86400</item>
     </string-array>
     <!--
     Values for location acuracy
     -->
-    <string-array name="listlocationacuracy">
+    <string-array name="locationacuracy">
         <!-- <item>@string/translatable_array_entry</item> -->
         <item>Always best</item>
         <item>Only while charging</item>
         <item>Never</item>
     </string-array>
-    <string-array name="listlocationacuracyvalues">
+    <string-array name="locationacuracyvalues">
         <item>always</item>
         <item>charging</item>
         <item>never</item>

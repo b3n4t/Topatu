@@ -19,6 +19,7 @@ public class miataruFriend implements Parcelable {
     private boolean hasLocation = false;
     private double Latitude;
     private double Longitude;
+    private double Altitude;
     private float Accuracy;
     private long TimeStamp = -1;
 
@@ -27,29 +28,26 @@ public class miataruFriend implements Parcelable {
     // Constructors
     //
     //
-    public miataruFriend(String UUID) {
+    public miataruFriend(String UUID, String Server) {
         if (UUID == null || UUID.length() == 0) {
             throw new IllegalArgumentException("Invalid UUID");
         }
         this.UUID = UUID;
-    }
-
-    public miataruFriend(String UUID, String Alias) {
-        this(UUID);
-        this.Alias = Alias;
-    }
-
-    public miataruFriend(String UUID, String Alias, Location location) {
-        this(UUID);
-        this.Alias = Alias;
-
-        this.hasLocation = true;
-        this.Latitude = location.getLatitude();
-        this.Longitude = location.getLongitude();
-        if (location.hasAccuracy()) {
-            this.Accuracy = location.getAccuracy();
+        if ( Server != null || Server.length() > 0 ) {
+            this.Server = Server;
+        } else {
+            Server = "service.miataru.com";
         }
-        this.TimeStamp = location.getTime();
+    }
+
+    public miataruFriend(String UUID, String Server, String Alias) {
+        this(UUID, Server);
+        this.Alias = Alias;
+    }
+
+    public miataruFriend(String UUID, String Server, String Alias, Location location) {
+        this(UUID, Server, Alias);
+        this.setLocation(location);
     }
 
     //
@@ -60,12 +58,14 @@ public class miataruFriend implements Parcelable {
     protected  miataruFriend(Parcel in) {
         if ( MainActivity.Debug > 8 ) { Log.v("TopatuLog","miataruFriend - creating from PARCEL"); }
         UUID = in.readString();
+        Server = in.readString();
         Alias = in.readString();
 
         hasLocation = in.readInt() != 0;
         if ( hasLocation ) {
             Latitude = in.readDouble();
             Longitude = in.readDouble();
+            Altitude = in.readDouble();
             Accuracy = in.readFloat();
             TimeStamp = in.readLong();
         }
@@ -76,12 +76,14 @@ public class miataruFriend implements Parcelable {
         if ( MainActivity.Debug > 8 ) { Log.v("TopatuLog", "miataruFriend - writing to PARCEL"); }
 
         dest.writeString(UUID);
+        dest.writeString(Server);
         dest.writeString(Alias);
 
         dest.writeInt(hasLocation ? 1 : 0);
         if ( hasLocation ) {
             dest.writeDouble(Latitude);
             dest.writeDouble(Longitude);
+            dest.writeDouble(Altitude);
             dest.writeFloat(Accuracy);
             dest.writeLong(TimeStamp);
         }
@@ -130,7 +132,7 @@ public class miataruFriend implements Parcelable {
 
     public String getLongDescription () {
         String text;
-        text = UUID;
+        text = UUID + "\nOn server: "+Server;
         if ( Alias != null && Alias.length() > 0 ) {
             text = text + "\nAlias: " + Alias;
         }
@@ -200,6 +202,8 @@ public class miataruFriend implements Parcelable {
 
     public double getLongitude () { return Longitude; }
 
+    public double getAltitude () { return Altitude; }
+
     public float getAccuracy () { return Accuracy; }
 
     public long getTimeStamp () { return TimeStamp; }
@@ -251,6 +255,9 @@ public class miataruFriend implements Parcelable {
         this.Longitude = location.getLongitude();
         if (location.hasAccuracy()) {
             this.Accuracy = location.getAccuracy();
+        }
+        if ( location.hasAltitude() ) {
+            this.Altitude = location.getAltitude();
         }
         this.TimeStamp = location.getTime();
     }

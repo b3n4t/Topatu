@@ -31,8 +31,8 @@
             android:persistent="true"
             android:defaultValue="charging"
             android:title="Location acuracy"
-            android:entries="@array/listlocationacuracy"
-            android:entryValues="@array/listlocationacuracyvalues"
+            android:entries="@array/locationacuracy"
+            android:entryValues="@array/locationacuracyvalues"
             android:dialogTitle="Acuracy of location" />
     </PreferenceCategory>
     <PreferenceCategory android:title="Advanced">

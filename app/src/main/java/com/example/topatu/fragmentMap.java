@@ -1,9 +1,9 @@
 package com.example.topatu;
 
+import android.app.Fragment;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -19,7 +19,6 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
-import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.Marker;
@@ -29,7 +28,7 @@ import java.util.ArrayList;
 /**
  * Created by Ixa on 18/02/2015.
  */
-public class fragmentMap extends Fragment implements OnMapReadyCallback, persistentFriends.friendEvents, AdapterView.OnItemSelectedListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnCameraChangeListener {
+public class fragmentMap extends Fragment implements persistentFriends.friendEvents, AdapterView.OnItemSelectedListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnCameraChangeListener {
 
     private static String LOGTAG = "TopatuLog";
     private persistentFriends friendData = null;
@@ -93,9 +92,13 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
         // set adapter to spinner
         friendAdapter = new adapterFriendArray(inflater.getContext(),persistentFriends.getFriends());
         friendName.setAdapter(friendAdapter);
-        if ( savedInstanceState != null && savedInstanceState.containsKey(SAVESTATE_SPINNER_SELECTION) ){
-            friendName.setSelection(savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION));
-            if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size()); }
+        if ( savedInstanceState != null ) {
+            if (savedInstanceState.containsKey(SAVESTATE_SPINNER_SELECTION)) {
+                friendName.setSelection(savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION));
+                if (MainActivity.Debug > 10) {
+                    Log.v(LOGTAG, "fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size());
+                }
+            }
         }
         friendName.setOnItemSelectedListener(this);
         //friendName.setBackgroundColor(Color.TRANSPARENT);
@@ -116,8 +119,8 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     @Override
     public void onSaveInstanceState (Bundle outState) {
         super.onSaveInstanceState(outState);
-        if ( MainActivity.Debug > 10 ) { Log.v(LOGTAG,"fragmentMap - Saving selected friend: " + friendName.getSelectedItemPosition()); }
-        outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition());
+        if ( myMapView != null ) { myMapView.onSaveInstanceState(outState); }
+        if ( friendName != null ) { outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition()); }
     }
 
     //
@@ -146,25 +149,13 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     @Override
     public void onDestroy() {
         super.onDestroy();
-        myMapView.onDestroy();
+        if ( myMapView != null ) { myMapView.onDestroy(); }
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        myMapView.onLowMemory();
-    }
-
-    //
-    //
-    // Get Google map is initialized
-    //
-    //
-    public void onMapReady (GoogleMap googleMap) {
-        Log.v(LOGTAG,"**************************");
-        Log.v(LOGTAG," MAP IS READY!!!!!!!!!!!!");
-        Log.v(LOGTAG,"**************************");
-        myMap = googleMap;
+        if ( myMapView != null ) { myMapView.onLowMemory(); }
     }
 
     //
@@ -179,7 +170,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     }
     public boolean onMarkerClick (Marker marker) {
 
-        if ( centerOnFriend ) { return false; }
+        if ( centerOnFriend ) { centerOnFriend = true;cameraTriggered = true;return false; }
 
         if ( MainActivity.Debug > 0 ) { Log.e(LOGTAG,"fragmentMap - onMarkerClick"); }
         centerOnFriend = true;
@@ -201,7 +192,7 @@ public class fragmentMap extends Fragment implements OnMapReadyCallback, persist
     // Callbacks from friend updates
     //
     //
-    public void refreshFriendInfo () {
+    public void onRefreshFriendInfo() {
         friendAdapter.notifyDataSetChanged();
 
         if ( activeFriend == null || !activeFriend.hasLocation() ) { return; }

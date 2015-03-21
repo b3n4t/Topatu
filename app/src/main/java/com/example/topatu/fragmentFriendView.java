@@ -2,12 +2,15 @@ package com.example.topatu;
 
 
 import android.app.AlertDialog;
+import android.app.ListFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.v4.app.ListFragment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -38,6 +41,8 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         super.onActivityCreated(savedInstanceState);
         Log.d(LOGTAG, "fragmentFriendView - onActivityCreated");
 
+        setHasOptionsMenu(true);
+
         //friendData = new persistentFriends();
         //friendData.registerCallback(this);
         //friends = persistentFriends.getFriends();
@@ -53,6 +58,34 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         setListAdapter(adapter);
 
         getListView().setOnItemLongClickListener(this);
+    }
+
+    //
+    //
+    // GUI to add new friend
+    //
+    //
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.menu_fragment_friend_view, menu);
+        Log.v(LOGTAG,"fragmentFriendView - onCreateOptionsMenu");
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.add_friend:
+                showFriendDialog(null);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void showFriendDialog (miataruFriend friend) {
+
     }
 
     //
@@ -120,11 +153,9 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
     //
     //
     @Override
-    public void refreshFriendInfo () {
+    public void onRefreshFriendInfo() {
         adapter.notifyDataSetChanged();
     }
-    @Override
-    public void refreshFriendLocation () {}
     //
     //
     // onPause and onResume

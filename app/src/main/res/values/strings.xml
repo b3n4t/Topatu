@@ -3,11 +3,41 @@
 
     <string name="app_name">Topatu</string>
     <string name="service_name">Topatu Location Uploader</string>
-    <string name="title_section_friends">Friends</string>
-    <string name="title_section_map">Maps</string>
-    <string name="title_section_settings">Settings</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="action_settings">Settings</string>
+    <string name="notification_text">Topatu</string>
+    <string name="notification_longtext">Location upload is active</string>
+    <string name="notification_enabled">Location upload activated</string>
+
+    <string name="settings_category_location_upload">Location upload</string>
+    <string name="settings_upload_location">SETTINGS_UPLOAD</string>
+    <string name="settings_upload_location_title">Upload my location</string>
+    <string name="settings_upload_location_description">Upload location to Miataru server</string>
+    <string name="settings_upload_freq">SETTINGS_UPLOAD_FREQ</string>
+    <string name="settings_upload_freq_default">300</string>
+    <string name="settings_upload_freq_title">Upload frequency</string>
+    <string name="settings_upload_freq_description">How often report my location</string>
+    <string name="settings_upload_freq_dialog">Upload frequency</string>
+    <string name="settings_save_location">SETTINGS_SAVE_LOCATION</string>
+    <string name="settings_save_location_title">Save  location history</string>
+    <string name="settings_save_location_description">Keep history in Miataru server</string>
+    <string name="settings_save_freq">SETTINGS_SAVE_FREQ</string>
+    <string name="settings_save_freq_default">60</string>
+    <string name="settings_save_freq_title">Save frequency</string>
+    <string name="settings_save_freq_description">How often save my location</string>
+    <string name="settings_save_freq_dialog">Save frequency</string>
+
+    <string name="settings_category_advanced">Advanced</string>
+    <string name="settings_my_id">SETTINGS_MY_ID</string>
+    <string name="settings_my_id_title">My own ID</string>
+    <!-- <string name="settings_my_id_description">Device identification ID</string> -->
+    <string name="settings_my_server">SETTINGS_MY_SERVER</string>
+    <string name="settings_my_server_local">LocalPosition</string>
+    <string name="settings_my_server_default">service.miataru.com</string>
+    <string name="settings_my_server_title">Miataru server</string>
+
+    <string name="showtext_myid_local">Myself</string>
+    <string name="showtext_myid_remote">Myself (in cloud)</string>
+    <string name="showtext_location_uploaded">My location uploaded</string>
+    <string name="showtext_add_friend">Add friend</string>
 
     <string name="frame_map_spinner_defaultmessage">Choose friend to show</string>
 

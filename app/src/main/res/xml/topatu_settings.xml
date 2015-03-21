@@ -1,4 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-
+    <PreferenceCategory android:title="@string/settings_category_location_upload">
+        <CheckBoxPreference
+            android:key="@string/settings_upload_location"
+            android:persistent="true"
+            android:defaultValue="false"
+            android:title="@string/settings_upload_location_title" />
+        <ListPreference
+            android:key="@string/settings_upload_freq"
+            android:dependency="@string/settings_upload_location"
+            android:persistent="true"
+            android:defaultValue="@string/settings_upload_freq_default"
+            android:title="@string/settings_upload_freq_title"
+            android:entries="@array/updatefreq"
+            android:entryValues="@array/updatefreqvalues"
+            android:summary="@string/settings_upload_freq_description"
+            android:dialogTitle="@string/settings_upload_freq_title" />
+        <CheckBoxPreference
+            android:key="@string/settings_save_location"
+            android:persistent="true"
+            android:defaultValue="false"
+            android:title="@string/settings_save_location_title" />
+        <ListPreference
+            android:key="@string/settings_save_freq"
+            android:dependency="@string/settings_save_location"
+            android:persistent="true"
+            android:defaultValue="@string/settings_save_freq_default"
+            android:title="@string/settings_save_freq_title"
+            android:entries="@array/updatefreq"
+            android:entryValues="@array/updatefreqvalues"
+            android:summary="@string/settings_save_freq_description"
+            android:dialogTitle="@string/settings_save_freq_title" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/settings_category_advanced">
+        <EditTextPreference
+            android:key="@string/settings_my_id"
+            android:persistent="true"
+            android:title="@string/settings_my_id_title" />
+        <EditTextPreference
+            android:key="@string/settings_my_server"
+            android:persistent="true"
+            android:defaultValue="@string/settings_my_server_default"
+            android:title="@string/settings_my_server_title" />
+    </PreferenceCategory>
 </PreferenceScreen>

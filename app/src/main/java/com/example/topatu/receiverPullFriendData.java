@@ -48,9 +48,10 @@ public class receiverPullFriendData extends BroadcastReceiver {
 
             //ArrayList<miataruFriend> friendList = persistentFriends.getFriends();
 
-            String URL = new String("http://service.miataru.com/v1/GetLocation");
+            String URL = new String("https://service.miataru.com/v1/GetLocation");
+            String miataruServer = "service.miataru.com";
             HttpClient httpclient = new DefaultHttpClient();
-            HttpPost request = new HttpPost(URL);
+            HttpPost request = new HttpPost("https://"+miataruServer+"/v1/GetLocation");
             HttpResponse response;
             InputStream buffer;
             String wholeanswer;
@@ -61,9 +62,12 @@ public class receiverPullFriendData extends BroadcastReceiver {
                 jsonrequest = new JSONObject();
                 JSONArray devicelist = new JSONArray();
                 for (int i=0;i<friendList.size();i++) {
-                    JSONObject device = new JSONObject();
-                    device.accumulate("Device", friendList.get(i).getUUID());
-                    devicelist.put(device);
+                    if ( friendList.get(i).getServer().compareTo(miataruServer) == 0 ) {
+                        //Log.v(LOGTAG,"Asking for location of "+ friendList.get(i).getShowText());
+                        JSONObject device = new JSONObject();
+                        device.accumulate("Device", friendList.get(i).getUUID());
+                        devicelist.put(device);
+                    }
                 }
                 jsonrequest.accumulate("MiataruGetLocation", devicelist );
                 //Log.d(LOGTAG,"Request: "+jsonrequest.toString());
@@ -110,6 +114,8 @@ public class receiverPullFriendData extends BroadcastReceiver {
                 //return "{ \"error\":\"Error reading HTTP answer - " + e.toString() + "\"}";
             }
 
+            //Log.v(LOGTAG,"JSON: " + wholeanswer);
+
             //
             // Process the answer
             //
@@ -150,7 +156,7 @@ public class receiverPullFriendData extends BroadcastReceiver {
                             location.setAltitude(devicepos.getDouble("Altitude"));
                         }
 
-                        miataruFriend friendLoc = new miataruFriend(ID);
+                        miataruFriend friendLoc = new miataruFriend(ID,miataruServer);
                         friendLoc.setLocation(location);
 
                         //devicelocations.put(ID, location);
