@@ -3,14 +3,14 @@
 
     <string name="app_name">Topatu</string>
     <string name="service_name">Topatu Location Uploader</string>
-    <string name="notification_text">Topatu</string>
-    <string name="notification_longtext">Location upload is active</string>
-    <string name="notification_enabled">Location upload activated</string>
 
     <string name="settings_category_location_upload">Location upload</string>
     <string name="settings_upload_location">SETTINGS_UPLOAD</string>
     <string name="settings_upload_location_title">Upload my location</string>
     <string name="settings_upload_location_description">Upload location to Miataru server</string>
+    <string name="settings_upload_autostart">SETTINGS_BOOT_AUTOSTART</string>
+    <string name="settings_upload_autostart_title">Start automatically</string>
+    <string name="settings_upload_autostart_description">On device boot automatically start uploading location</string>
     <string name="settings_upload_freq">SETTINGS_UPLOAD_FREQ</string>
     <string name="settings_upload_freq_default">300</string>
     <string name="settings_upload_freq_title">Upload frequency</string>
@@ -34,10 +34,18 @@
     <string name="settings_my_server_default">service.miataru.com</string>
     <string name="settings_my_server_title">Miataru server</string>
 
+    <string name="showtext_notification_text">Topatu</string>
+    <string name="showtext_notification_longtext">Location upload is active</string>
+    <string name="showtext_notification_enabled">Location upload activated</string>
+
     <string name="showtext_myid_local">Myself</string>
     <string name="showtext_myid_remote">Myself (in cloud)</string>
     <string name="showtext_location_uploaded">My location uploaded</string>
+
     <string name="showtext_add_friend">Add friend</string>
+    <string name="showtext_edit_friend">Edit</string>
+    <string name="showtext_delete_friend">Delete</string>
+    <string name="showtext_menu_dialog_title">Add friend</string>
 
     <string name="frame_map_spinner_defaultmessage">Choose friend to show</string>
 

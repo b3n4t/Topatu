@@ -36,6 +36,18 @@ public class topatuConfig {
         return myContext.getString(R.string.settings_my_server_default);
     }
 
+    public boolean getStartOnBoot () {
+        return pref.getBoolean(myContext.getString(R.string.settings_upload_autostart),false);
+    }
+
+    public boolean getUploadLocation () {
+        return pref.getBoolean(myContext.getString(R.string.settings_upload_location),false);
+    }
+
+    public boolean getSaveHistory () {
+        return pref.getBoolean(myContext.getString(R.string.settings_save_location),false);
+    }
+
     public long getIntervalLocationSave () {
         return Long.valueOf(pref.getString(myContext.getString(R.string.settings_save_freq), myContext.getString(R.string.settings_save_freq_default)));
     }

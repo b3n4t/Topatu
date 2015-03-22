@@ -1,5 +1,6 @@
 package com.example.topatu;
 
+import android.app.Activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.EditTextPreference;
@@ -8,11 +9,15 @@ import android.preference.Preference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
+import android.util.Log;
 
 /**
  * Created by Ixa on 09/02/2015.
  */
 public class fragmentTopatuSettings extends PreferenceFragment implements SharedPreferences.OnSharedPreferenceChangeListener {
+    private static final String LOGTAG = "TopatuLog";
+    private OnConfigChanged listener;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -26,6 +31,17 @@ public class fragmentTopatuSettings extends PreferenceFragment implements Shared
 
         // Set summary for parameters
         setCurrentValueOnSummary(getPreferenceScreen());
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        if (activity instanceof OnConfigChanged) {
+            listener = (OnConfigChanged) activity;
+        } else {
+            throw new ClassCastException(activity.toString()
+                    + " must implemenet fragmentTopatuSettings.OnConfigChanged");
+        }
     }
 
     private void setCurrentValueOnSummary ( Preference pref ) {
@@ -52,7 +68,6 @@ public class fragmentTopatuSettings extends PreferenceFragment implements Shared
     public void onResume() {
         super.onResume();
         getPreferenceManager().getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
-
     }
 
     @Override
@@ -66,5 +81,19 @@ public class fragmentTopatuSettings extends PreferenceFragment implements Shared
         Preference pref = findPreference(key);
 
         setCurrentValueOnSummary(pref);
+
+        if ( listener != null ) {
+            Log.v(LOGTAG, "*** config changed. calling MainActivity callback");
+            listener.onConfigChanged();
+        }
+    }
+
+    //
+    //
+    // Callback interface
+    //
+    //
+    public interface OnConfigChanged {
+        public void onConfigChanged ();
     }
 }

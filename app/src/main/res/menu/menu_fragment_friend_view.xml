@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/show_on_map"
+        android:icon="@drawable/ic_action_map"
+        app:showAsAction="always"
+        android:enabled="false"
+        android:visible="true"
+        />
     <item android:id="@+id/add_friend"
-        android:icon="@drawable/ic_action_new"
+        android:icon="@drawable/ic_action_add_person"
         app:showAsAction="always"
         android:enabled="true"
+        android:visible="true"
+        />
+    <item android:id="@+id/edit_friend"
+        android:icon="@drawable/ic_action_edit"
+        android:title="@string/showtext_edit_friend"
+        app:showAsAction="ifRoom"
+        android:enabled="false"
+        android:visible="true"
+        />
+    <item android:id="@+id/delete_friend"
+        android:icon="@drawable/ic_action_remove"
+        android:title="@string/showtext_delete_friend"
+        app:showAsAction="ifRoom"
+        android:enabled="false"
         android:visible="true"
         />
 

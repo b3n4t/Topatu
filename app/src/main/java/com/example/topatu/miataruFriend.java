@@ -139,7 +139,7 @@ public class miataruFriend implements Parcelable {
         if ( hasLocation ) {
             text = text + "\n" + String.format( "Lon: %.2f; Lat: %.2f (%.0f)", Longitude, Latitude, Accuracy );
         }
-        text = text + "\nLast updated: " + getUpdateTime();
+        text = text + "\nLast updated: " + getUpdateTime() + "(" + TimeStamp + ")";
 
         return text;
     }
@@ -149,9 +149,12 @@ public class miataruFriend implements Parcelable {
 
         long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
 
-        if ( timediff < 0 ) { return "N/A"; }
-
         String answer;
+
+        //if ( timediff < 0 ) { return "N/A (neg)"; }
+        //if ( timediff < 0 ) { answer = "- "; }
+        //else { answer = ""; }
+
         if ( timediff > 60*60*24*2 ) {
             timediff = timediff / (60*60*24);
             answer = timediff+" d";

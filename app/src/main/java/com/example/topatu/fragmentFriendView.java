@@ -1,10 +1,12 @@
 package com.example.topatu;
 
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ListFragment;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,6 +18,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -24,12 +27,16 @@ import java.util.ArrayList;
 /**
  * Created by Ixa on 09/02/2015.
  */
-public class fragmentFriendView extends ListFragment implements persistentFriends.friendEvents, AdapterView.OnItemLongClickListener {
+public class fragmentFriendView extends ListFragment implements persistentFriends.friendEvents, AdapterView.OnItemLongClickListener, AdapterView.OnItemClickListener {
 
     private static String LOGTAG = "TopatuLog";
+    private OnFriendSelected listener;
     private ArrayList<miataruFriend> friends = null;
     private adapterFriendArray adapter = null;
     private persistentFriends friendData = null;
+    private miataruFriend selectedFriend;
+    private int selectedItem = -1;
+    private Menu myMenu = null;
 
     public static fragmentFriendView  newInstance() {
         fragmentFriendView f = new fragmentFriendView();
@@ -55,9 +62,21 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
 
         //ArrayAdapter<miataruFriend> adapter = new ArrayAdapter<miataruFriend>(getActivity(),android.R.layout.simple_list_item_1, friends);
         adapter = new adapterFriendArray(getActivity(),friends);
-        setListAdapter(adapter);
+        this.getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+        this.getListView().setOnItemClickListener(this);
+        this.setListAdapter(adapter);
+        //this.getListView().setOnItemLongClickListener(this);
+    }
 
-        getListView().setOnItemLongClickListener(this);
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        if (activity instanceof OnFriendSelected) {
+            listener = (OnFriendSelected) activity;
+        } else {
+            throw new ClassCastException(activity.toString()
+                    + " must implemenet fragmentFriendView.OnFriendSelected");
+        }
     }
 
     //
@@ -65,10 +84,50 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
     // GUI to add new friend
     //
     //
+    private void setMenuStatus ( ) {
+        boolean menuStatus;
+        int menuAlpha;
+
+        if (selectedItem == -1) {
+            menuStatus = false;
+            menuAlpha = 0x40;
+        } else {
+            menuStatus = true;
+            menuAlpha = 0xFF;
+        }
+
+        MenuItem menuEntry;
+        menuEntry = myMenu.findItem(R.id.show_on_map);
+        menuEntry.setEnabled(menuStatus);
+        menuEntry.getIcon().setAlpha(menuAlpha);
+        menuEntry = myMenu.findItem(R.id.edit_friend);
+        menuEntry.setEnabled(menuStatus);
+        menuEntry.getIcon().setAlpha(menuAlpha);
+        menuEntry = myMenu.findItem(R.id.delete_friend);
+        menuEntry.setEnabled(menuStatus);
+        menuEntry.getIcon().setAlpha(menuAlpha);
+    }
+
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        Log.v(LOGTAG,"fragmentFriendView - onItemClick - Old friend (" + selectedItem + ") and new (" + position +")");
+        if ( selectedItem == position ) {
+            selectedItem = -1;
+            selectedFriend = null;
+        } else {
+            selectedItem = position;
+            selectedFriend = friends.get(selectedItem);
+        }
+        setMenuStatus();
+        adapter.notifyDataSetChanged();
+    }
+
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.menu_fragment_friend_view, menu);
+        myMenu = menu;
+        setMenuStatus();
         Log.v(LOGTAG,"fragmentFriendView - onCreateOptionsMenu");
     }
 
@@ -79,12 +138,46 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
             case R.id.add_friend:
                 showFriendDialog(null);
                 return true;
+            case R.id.show_on_map:
+                listener.onFriendSelected(selectedItem);
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
     private void showFriendDialog (miataruFriend friend) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        if ( friend == null ) {
+            builder.setTitle("New Friend:");
+        } else {
+            builder.setTitle("Edit Friend:");
+        }
+        builder.setMessage("Alias:");
+        final EditText newAlias = new EditText (getActivity());
+        newAlias.setHint("Alias to identify this device");
+        if ( friend != null && friend.getAlias() != null && friend.getAlias().length() > 0 ) {
+            newAlias.setText(friend.getAlias());
+        }
+
+        builder.setView(newAlias);
+        builder.setPositiveButton("Ok",new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG,"***** Set '" + newAlias.getText() + "' to '" + selectedFriend.getUUID() + "'"); }
+                //String value1 = servername.getText().toString();
+                //String value2 = username.getText().toString();
+                //String value3 = password.getText().toString();
+                // Do something with value!
+            }
+        });
+        builder.setNegativeButton("Cancel",new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+            }
+        });
+        AlertDialog editDialog = builder.create();
+        editDialog.show();
+
 
     }
 
@@ -94,42 +187,24 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
     //
     //
     public boolean onItemLongClick(AdapterView parent, View view, final int position, long id) {
-        final miataruFriend selectedFriend = friends.get(position);
+        selectedFriend = friends.get(position);
         // if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"LongClickMenu - Item " + position); }
-        final CharSequence[] items = { "View in Map", "Edit alias", "Delete" };
+        //final CharSequence[] items = { "View in Map", "Edit alias", "Delete" };
+        final CharSequence[] items = MainActivity.getAppContext().getResources().getStringArray(R.array.showtext_menu_dialog_content);
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("Action:");
+        builder.setTitle(R.string.showtext_menu_dialog_title);
         builder.setItems(items, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int item) {
                 if ( selectedFriend == null ) { return; }
                 //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"Popup Menu Item selected "+item); }
                 switch (item ) {
-                    case 0: Log.v(LOGTAG, "Action: To Map ("+selectedFriend.getAlias()+")");break;
+                    case 0:
+                        Log.v(LOGTAG, "Action: To Map ("+selectedFriend.getAlias()+")");
+                        listener.onFriendSelected(position);
+                        break;
                     case 1:
                         //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Action: Edit ("+selectedFriend.getAlias()+")"); }
-                        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-                        builder.setTitle("Edit:");
-                        builder.setMessage("Alias:");
-                        final EditText newAlias = new EditText (getActivity());
-                        newAlias.setText(selectedFriend.getAlias());
-
-                        builder.setView(newAlias);
-                        builder.setPositiveButton("Ok",new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"***** Set '" + newAlias.getText() + "' to '" + selectedFriend.getUUID() + "'"); }
-                                //String value1 = servername.getText().toString();
-                                //String value2 = username.getText().toString();
-                                //String value3 = password.getText().toString();
-                                // Do something with value!
-                            }
-                        });
-                        builder.setNegativeButton("Cancel",new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                // User cancelled the dialog
-                            }
-                        });
-                        AlertDialog editDialog = builder.create();
-                        editDialog.show();
+                        showFriendDialog(selectedFriend);
                         break;
                     case 2:
                         if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Action: Delete ("+selectedFriend.getAlias()+")"); }
@@ -198,6 +273,8 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
 
             View rowView = convertView;
 
+            //Log.v(LOGTAG,"fragmentFriendView - Adapter - Selected friend is " + selectedItem +" ("+position+")");
+
             if (rowView == null) {
                 LayoutInflater inflater = (LayoutInflater) context
                         .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -208,6 +285,18 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
             TextView maintext = (TextView) rowView.findViewById(R.id.firstLine);
             TextView secondarytext = (TextView) rowView.findViewById(R.id.secondLine);
 
+            //if ( position == fragmentFriendView.this.getListView().getSelectedItemPosition() ) {
+            if ( position == selectedItem ) {
+                rowView.setBackgroundResource(R.color.topatu_backgroundselected);
+                update.setBackgroundResource(R.color.topatu_backgroundselected);
+                maintext.setBackgroundResource(R.color.topatu_backgroundselected);
+                secondarytext.setBackgroundResource(R.color.topatu_backgroundselected);
+            } else {
+                rowView.setBackgroundResource(R.color.topatu_backgroundnormal);
+                update.setBackgroundResource(R.color.topatu_backgroundnormal);
+                maintext.setBackgroundResource(R.color.topatu_backgroundnormal);
+                secondarytext.setBackgroundResource(R.color.topatu_backgroundnormal);
+            }
             miataruFriend friend = values.get(position);
 
             maintext.setText(friend.getShowText());
@@ -218,4 +307,14 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
             return rowView;
         }
     }
+
+    //
+    //
+    // Callback interface
+    //
+    //
+    public interface OnFriendSelected {
+        public void onFriendSelected (int friendPos);
+    }
+
 }

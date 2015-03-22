@@ -5,6 +5,7 @@
     <color name="topatu_textcolor">#0F0F0F</color>
     <color name="topatu_bordercolor">#000000</color>
     <color name="topatu_backgroundnormal">#FFF0F0F0</color>
+    <color name="topatu_backgroundselected">#FFD0D0FF</color>
     <color name="topatu_backgroundtransparent">#B8F0F0F0</color>
 
 </resources>

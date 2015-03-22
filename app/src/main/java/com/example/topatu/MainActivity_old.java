@@ -350,6 +350,8 @@ public class MainActivity_old extends ActionBarActivity implements ActionBar.Tab
         */
     }
 
+
+
     //
     //
     // Some common functions for the application

@@ -10,8 +10,13 @@ import android.content.Intent;
 public class receiverOnBoot extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        Intent service = new Intent(context, serviceLocationUploader.class);
-        service.putExtra("StartedFrom","receiverOnBoot");
-        context.startService(service);
+        topatuConfig config = new topatuConfig(context);
+
+        // Only start service if user says so
+        if ( config.getUploadLocation() && config.getStartOnBoot() ) {
+            Intent service = new Intent(context, serviceLocationUploader.class);
+            service.putExtra("StartedFrom", "receiverOnBoot");
+            context.startService(service);
+        }
     }
 }

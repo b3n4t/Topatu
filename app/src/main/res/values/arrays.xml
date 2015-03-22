@@ -10,6 +10,14 @@
    </string-array>
 
     <!--
+    Friend fragment menu dialog content
+    -->
+    <string-array name="showtext_menu_dialog_content">
+        <item>View in Map</item>
+        <item>Edit</item>
+        <item>Delete</item>
+    </string-array>
+    <!--
     Values for update frequency
     -->
     <string-array name="updatefreq">

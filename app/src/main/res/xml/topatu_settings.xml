@@ -3,24 +3,32 @@
     <PreferenceCategory android:title="@string/settings_category_location_upload">
         <CheckBoxPreference
             android:key="@string/settings_upload_location"
+            android:summary="@string/settings_upload_location_description"
+            android:title="@string/settings_upload_location_title"
+            android:defaultValue="false"
+            android:persistent="true" />
+        <CheckBoxPreference
+            android:key="@string/settings_upload_autostart"
+            android:summary="@string/settings_upload_autostart_description"
+            android:dependency="@string/settings_upload_location"
             android:persistent="true"
             android:defaultValue="false"
-            android:title="@string/settings_upload_location_title" />
+            android:title="@string/settings_upload_autostart_title" />
         <ListPreference
             android:key="@string/settings_upload_freq"
+            android:summary="@string/settings_upload_freq_description"
             android:dependency="@string/settings_upload_location"
             android:persistent="true"
             android:defaultValue="@string/settings_upload_freq_default"
             android:title="@string/settings_upload_freq_title"
             android:entries="@array/updatefreq"
             android:entryValues="@array/updatefreqvalues"
-            android:summary="@string/settings_upload_freq_description"
             android:dialogTitle="@string/settings_upload_freq_title" />
         <CheckBoxPreference
             android:key="@string/settings_save_location"
-            android:persistent="true"
+            android:title="@string/settings_save_location_title"
             android:defaultValue="false"
-            android:title="@string/settings_save_location_title" />
+            android:persistent="true" />
         <ListPreference
             android:key="@string/settings_save_freq"
             android:dependency="@string/settings_save_location"
@@ -35,12 +43,12 @@
     <PreferenceCategory android:title="@string/settings_category_advanced">
         <EditTextPreference
             android:key="@string/settings_my_id"
-            android:persistent="true"
-            android:title="@string/settings_my_id_title" />
+            android:title="@string/settings_my_id_title"
+            android:persistent="true" />
         <EditTextPreference
             android:key="@string/settings_my_server"
-            android:persistent="true"
             android:defaultValue="@string/settings_my_server_default"
-            android:title="@string/settings_my_server_title" />
+            android:title="@string/settings_my_server_title"
+            android:persistent="true" />
     </PreferenceCategory>
 </PreferenceScreen>

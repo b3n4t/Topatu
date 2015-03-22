@@ -41,6 +41,7 @@ public class receiverSaveLocation extends BroadcastReceiver {
         if (location == null) {
             return;
         }
+        location.setTime(System.currentTimeMillis());
 
         miataruFriend me = new miataruFriend(myID, myServer);
         me.setLocation(location);
@@ -56,6 +57,8 @@ public class receiverSaveLocation extends BroadcastReceiver {
     private class MiataruSave extends AsyncTask<miataruFriend, Void, Long> {
         @Override
         protected Long doInBackground(miataruFriend... params) {
+            topatuConfig config = new topatuConfig(mycontext);
+
             return params[0].getTimeStamp();
         }
 

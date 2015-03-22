@@ -1,5 +1,6 @@
 package com.example.topatu;
 
+import android.app.ActivityManager;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.content.Context;
@@ -26,12 +27,16 @@ import java.util.UUID;
 /**
  * Created by Ixa on 20/03/2015.
  */
-public class MainActivity extends ActionBarActivity implements ActionBar.OnNavigationListener {
+public class MainActivity extends ActionBarActivity implements ActionBar.OnNavigationListener, fragmentFriendView.OnFriendSelected, fragmentTopatuSettings.OnConfigChanged {
 
     private static final String LOGTAG = "TopatuLog";
     private static final String STATE_ACTIVE_FRAGMENT = "Topatu_MainActivity_ActiveFragment";
     private static final String STATE_NUM_FRAGMENTS = "Topatu_MainActivity_NumFragment";
     private static final String STATE_FRAGMENT_STATE = "Topatu_MainActivity_FragmentState";
+    private static final int FRAGMENT_MAP = 0;
+    private static final int FRAGMENT_FRIENDS = 1;
+    private static final int FRAGMENT_SETTINGS = 2;
+
     private static String[] fragment_titles;
 
     public static Context context;
@@ -54,77 +59,81 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
         creationState = savedInstanceState;
 
         //
-        // Check for UUID
+        // Check for UUID and create a new one if missing. This should be changed in final release.
         //
         myConfig = new topatuConfig(this);
 
         String MyID = myConfig.getID();
 
         if (MyID == null) {
-            if (MyID == null) {
-                if (MainActivity.Debug > 2) {
-                    Log.v(LOGTAG, "No UUID found");
-                }
-                MyID = UUID.randomUUID().toString();
-                //MyID = "07b2a900-6b6b-4e38-9679-6f4610bbb076";
-                if (MainActivity.Debug > 2) {
-                    Log.v(LOGTAG, "New one: " + MyID);
-                }
-                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-                editor.putString(getString(R.string.settings_my_id), MyID);
-                //editor.putString(getString(R.string.settings_my_server), );
-                editor.apply();
+            if (MainActivity.Debug > 2) {
+                Log.v(LOGTAG, "No UUID found");
             }
+            MyID = UUID.randomUUID().toString();
+            if (MainActivity.Debug > 2) {
+                Log.v(LOGTAG, "New one: " + MyID);
+            }
+            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+            editor.putString(getString(R.string.settings_my_id), MyID);
+            editor.putString(getString(R.string.settings_my_server),getString(R.string.settings_my_server_default));
+            editor.apply();
         }
-
         //
         // Load the screen
         //
         MainActivity.context = getApplicationContext();
+        fragment_titles = getResources().getStringArray(R.array.fragments);
 
         setContentView(R.layout.fragment_placehonder);
 
         //ActionBar bar = getActionBar();
         ActionBar bar = getSupportActionBar();
-
-        fragment_titles = getResources().getStringArray(R.array.fragments);
-
-        //ArrayAdapter<String> actionbar_adapter = new ArrayAdapter<String>(bar.getThemedContext(),R.layout.actionbar_list_item,fragment_titles);
-        SpinnerAdapter mySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.fragments, android.R.layout.simple_spinner_dropdown_item);
-
         bar.setDisplayShowTitleEnabled(false);
         bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+        //ArrayAdapter<String> actionbar_adapter = new ArrayAdapter<String>(bar.getThemedContext(),R.layout.actionbar_list_item,fragment_titles);
+        SpinnerAdapter mySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.fragments, android.R.layout.simple_spinner_dropdown_item);
         bar.setListNavigationCallbacks(mySpinnerAdapter, this);
-
 
         //
         // Get a persistentFriend objecet instance
         //
         friends = new persistentFriends();
 
+
+        // show default fragment, currently friendlist but probably map
+        int default_fragment = FRAGMENT_FRIENDS;
+
         if (savedInstanceState != null) {
+            // restore friend location if possible
             persistentFriends.onRestoreInstanceState(savedInstanceState);
 
-            int preFrag = savedInstanceState.getInt(STATE_ACTIVE_FRAGMENT,-1);
-            if ( preFrag != -1 ) {
-                bar.setSelectedNavigationItem(preFrag);
-            }
+            // Restore saved states from fragments
             int num = savedInstanceState.getInt(STATE_NUM_FRAGMENTS,-1);
             if ( num > 0 ) {
                 for (int x = 0;x < num; x++) {
                     fragSavedStates.add(x,savedInstanceState.getBundle(STATE_FRAGMENT_STATE+x));
                 }
             }
+
+            // restore which fragment was active
+            int preFrag = savedInstanceState.getInt(STATE_ACTIVE_FRAGMENT,-1);
+            if ( preFrag != -1 ) {
+                //Log.v(LOGTAG,"**** MainActivity - restoring previous fragment " + preFrag);
+                default_fragment = preFrag;
+            }
         } else {
-            bar.setSelectedNavigationItem(1);
+            for (int x=0;x < fragment_titles.length;x++) {
+                fragSavedStates.add(x,new Bundle());
+            }
         }
 
+        bar.setSelectedNavigationItem(default_fragment);
+
         //
-        // Start the background service
+        // Prepare Intent for background upload service
         //
         uploadService = new Intent(context, serviceLocationUploader.class);
-        uploadService.putExtra("StartedFrom","MainActivity");
-        context.startService(uploadService);
+        uploadService.putExtra("StartedFrom", "MainActivity");
     }
 
     @Override
@@ -165,8 +174,6 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
     @Override
     protected void onStop() {
         super.onStop();
-
-        context.stopService(uploadService);
     }
 
     //
@@ -177,59 +184,105 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
     public boolean onNavigationItemSelected(int itemPosition, long itemId) {
         // Change the fragment
 
-        Log.v(LOGTAG, "MainActivity - onNavigationItemSelected - " + itemId);
+        //Log.v(LOGTAG, "**** MainActivity - onNavigationItemSelected - " + itemPosition);
 
         // Check if this is not the first time we run this method
         if ( prevFragmentNum != -1 ) {
             Bundle fragState;
 
-            // Read the bundle from the Array. If it doesn't exit create a new one and add to array
-            try {
-                fragState = fragSavedStates.get(prevFragmentNum);
-            } catch ( IndexOutOfBoundsException e ) {
-                fragState = new Bundle();
-                for (int x = fragSavedStates.size(); x<prevFragmentNum ;x++ ) {
-                    fragState = new Bundle();
-                    fragSavedStates.add(x,fragState);
-                }
-            }
+            // Read the bundle from the Array
+            fragState = fragSavedStates.get(prevFragmentNum);
 
             // Set bundle to fragment
             prevFragment.onSaveInstanceState(fragState);
         }
 
-        Fragment newFragment;
+        if ( prevFragmentNum != itemPosition ) {
 
-        // Choose which fragment we should show
-        switch(itemPosition) {
-            case 0: newFragment = new fragmentMap();break;
-            case 1: newFragment = new fragmentFriendView();break;
-            //case 2: newFragment = new fragmentTopatuSettings();break;
-            default: newFragment = new fragmentTopatuSettings();break;
+            Fragment newFragment;
+
+            // Choose which fragment we should show
+            switch (itemPosition) {
+                case FRAGMENT_MAP:
+                    newFragment = new fragmentMap();
+                    break;
+                case FRAGMENT_FRIENDS:
+                    newFragment = new fragmentFriendView();
+                    break;
+                //case 2: newFragment = new fragmentTopatuSettings();break;
+                case FRAGMENT_SETTINGS:
+                    newFragment = new fragmentTopatuSettings();
+                    break;
+                default:
+                    newFragment = new fragmentTopatuSettings();
+                    break;
+            }
+
+            // add state bundle to the fragment
+            newFragment.setArguments(fragSavedStates.get(itemPosition));
+
+            // Replace the visible fragment
+            FragmentTransaction transaction = getFragmentManager().beginTransaction();
+            // Replace whatever is in the fragment_container view with this fragment,
+            // and add the transaction to the back stack
+            transaction.replace(R.id.fragment_placeholder, newFragment);
+            transaction.addToBackStack(null);
+            transaction.commit();
+
+            // Save the current fragment and fragment number
+            prevFragment = newFragment;
+            prevFragmentNum = itemPosition;
+
+            return true;
         }
 
-        // if a state bundle exist add it to the fragment
-        try {
-            newFragment.setArguments(fragSavedStates.get(itemPosition));
-        } catch ( IndexOutOfBoundsException e ) {
-            if ( prevFragmentNum == -1 ) {
-                newFragment.setArguments(creationState);
+        return false;
+    }
+
+
+    //
+    //
+    // Callbacks from fragments
+    //
+    //
+
+
+    //@Override
+    public void onFriendSelected(int friendPos) {
+        // Add something here to pass the selected friend to the fragment
+
+        // Call the fragment
+
+        fragSavedStates.get(FRAGMENT_MAP).putInt(fragmentMap.SAVESTATE_SPINNER_SELECTION,friendPos);
+
+        getSupportActionBar().setSelectedNavigationItem(FRAGMENT_MAP);
+
+    }
+
+    public void onConfigChanged () {
+        topatuConfig config = new topatuConfig(this);
+
+        if ( config.getID() != null && config.getID().length() > 0 ) {
+            if (config.getUploadLocation() || config.getSaveHistory() ) {
+                Log.v(LOGTAG,"*** Starting background service");
+                context.startService(uploadService);
+            } else {
+                if (isMyServiceRunning(serviceLocationUploader.class)) {
+                    Log.v(LOGTAG,"*** Stoping background service");
+                    context.stopService(uploadService);
+                }
             }
         }
+    }
 
-        // Replace the visible fragment
-        FragmentTransaction transaction = getFragmentManager().beginTransaction();
-        // Replace whatever is in the fragment_container view with this fragment,
-        // and add the transaction to the back stack
-        transaction.replace(R.id.fragment_placeholder, newFragment);
-        transaction.addToBackStack(null);
-        transaction.commit();
-
-        // Save the current fragment and fragment number
-        prevFragment = newFragment;
-        prevFragmentNum = itemPosition;
-
-        return true;
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     //

@@ -31,6 +31,9 @@ import java.util.ArrayList;
 public class fragmentMap extends Fragment implements persistentFriends.friendEvents, AdapterView.OnItemSelectedListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnCameraChangeListener {
 
     private static String LOGTAG = "TopatuLog";
+    private static final int DEFAULT_ZOOM = 12;
+    public static final String SAVESTATE_SPINNER_SELECTION = "fragmentMap-friendSpinner";
+
     private persistentFriends friendData = null;
     private boolean centerOnFriend = false;
     private boolean cameraTriggered = false;
@@ -38,23 +41,26 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
     private MapView myMapView = null;
     private GoogleMap myMap = null;
     private Marker friendMarker = null;
+    private TextView markerSpinner = null;
     private Circle friendCircle = null;
     private miataruFriend activeFriend = null;
     private long activeFriendTimeStamp = 0;
     private Spinner friendName = null;
     private adapterFriendArray friendAdapter;
 
-    private static final int DEFAULT_ZOOM = 12;
-    private static final String SAVESTATE_SPINNER_SELECTION = "fragmentMap-friendSpinner";
-
-
-    public static fragmentMap  newInstance() {
-        return new fragmentMap();
-    }
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "fragmentMap - onCreateView"); }
+
+        Bundle myParams;
+        if ( savedInstanceState != null ) {
+            //if ( MainActivity.Debug > 2 ) {  Log.v(LOGTAG,"***** reading parameters from savedInstanceState" ); }
+            myParams = savedInstanceState;
+        } else {
+            myParams = getArguments();
+            //if ( MainActivity.Debug > 2 ) {  Log.v(LOGTAG,"***** reading parameters from getArguments()" ); }
+        }
+
         //View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         //TextView textView = (TextView) rootView.findViewById(R.id.section_label);
         //textView.setText("Map goes here");
@@ -66,7 +72,7 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         //MapsInitializer.initialize(inflater.getContext());
 
         myMapView = (MapView)view.findViewById(R.id.map_googlemap);
-        myMapView.onCreate(savedInstanceState);
+        myMapView.onCreate(myParams);
 
         //myMapView.getMapAsync(this);
         myMap = myMapView.getMap();
@@ -92,13 +98,21 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         // set adapter to spinner
         friendAdapter = new adapterFriendArray(inflater.getContext(),persistentFriends.getFriends());
         friendName.setAdapter(friendAdapter);
-        if ( savedInstanceState != null ) {
-            if (savedInstanceState.containsKey(SAVESTATE_SPINNER_SELECTION)) {
-                friendName.setSelection(savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION));
+
+        if ( myParams != null ) {
+            if (myParams.containsKey(SAVESTATE_SPINNER_SELECTION)) {
+                friendName.setSelection(myParams.getInt(SAVESTATE_SPINNER_SELECTION));
                 if (MainActivity.Debug > 10) {
-                    Log.v(LOGTAG, "fragmentMap - Restoring selected friend " + savedInstanceState.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size());
+                    Log.v(LOGTAG, "fragmentMap - Restoring selected friend " + myParams.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size());
                 }
+                if (MainActivity.Debug > 10) {
+                    Log.v(LOGTAG, "***** Restoring selected friend num " + myParams.getInt(SAVESTATE_SPINNER_SELECTION));
+                }
+            } else {
+                if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Could not restore selected friend num, SAVESTATE_SPINNER_SELECTION doesn't exist" ); }
             }
+        } else {
+            if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Could not restore selected friend num, myParams is empty" ); }
         }
         friendName.setOnItemSelectedListener(this);
         //friendName.setBackgroundColor(Color.TRANSPARENT);
@@ -113,14 +127,16 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "fragmentMap - onActivityCreated"); }
     }
 
     @Override
     public void onSaveInstanceState (Bundle outState) {
         super.onSaveInstanceState(outState);
         if ( myMapView != null ) { myMapView.onSaveInstanceState(outState); }
-        if ( friendName != null ) { outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition()); }
+        if ( friendName != null ) {
+            outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition());
+            if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Saving selected friend num " + friendName.getSelectedItemPosition() ); }
+        }
     }
 
     //
@@ -210,6 +226,9 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
             friendCircle.setCenter(activeFriend.getLatLng());
             friendCircle.setRadius(activeFriend.getAccuracy());
         }
+        if ( markerSpinner != null ) {
+            markerSpinner.setText(activeFriend.getLongDescription());
+        }
 
         if ( centerOnFriend && myMap != null && activeFriend != null && activeFriend.hasLocation() ) {
             try {
@@ -221,9 +240,6 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
             }
         }
     }
-
-    public void refreshFriendLocation () { }
-    public void refreshFriends () { }
 
     //
     //
@@ -250,7 +266,7 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
 
         if ( myMap != null ) {
             if ( activeFriend != null && activeFriend.hasLocation() ) {
-                Log.v(LOGTAG, "*** Creating marker and circle");
+                //Log.v(LOGTAG, "*** Creating marker and circle");
                 if (friendMarker == null) {
                     friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
                     friendMarker.setDraggable(false);
@@ -273,7 +289,7 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
                 }
 
                 // Center the camera in the selected friend
-                Log.v(LOGTAG, "*** Zooming the camera");
+                //Log.v(LOGTAG, "*** Zooming the camera");
                 try {
                     cameraTriggered = true;
                     myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), DEFAULT_ZOOM));
@@ -381,7 +397,11 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         }
 
         public View getInfoWindow(Marker marker) {
-            render(marker, mymarkerview);
+            markerSpinner = mymarkerview;
+            mymarkerview.setBackgroundResource(R.drawable.layout_rounded_bg);
+            mymarkerview.setTextColor(getResources().getColor(R.color.topatu_textcolor));
+            mymarkerview.setText(marker.getSnippet());
+
             return mymarkerview;
         }
 
@@ -389,13 +409,5 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
             return null;
         }
 
-        private void render(Marker marker, View view) {
-            // Add the code to set the required values
-            // for each element in your custominfowindow layout file
-            mymarkerview.setTextColor(getResources().getColor(R.color.topatu_textcolor));
-            mymarkerview.setText(activeFriend.getLongDescription());
-            mymarkerview.setBackgroundResource(R.drawable.layout_rounded_bg);
-
-        }
     }
 }

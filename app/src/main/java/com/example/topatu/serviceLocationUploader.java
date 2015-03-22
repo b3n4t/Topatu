@@ -40,10 +40,8 @@ public class serviceLocationUploader extends Service {
     private static NotificationManager notificationMgr;
     private static AlarmManager alarmMgr;
     private static PendingIntent alarmIntent;
-    private static BroadcastReceiver friendLocationReceiver;
 
-    private int latestInstance;
-    private long latestSavedlocation = 0;
+    private long latestLocationUploaded = 0;
     private boolean serviceIsActive = false;
 
     private topatuConfig config;
@@ -78,16 +76,51 @@ public class serviceLocationUploader extends Service {
             Log.v(LOGTAG,"serviceLocationUploader - onStartCommand: Service started from unknown source");
         }
 
-        latestInstance = startId;
-
         //receiverSaveLocation
         //serviceLocationUploader;SaveTimeStamp;
         if ( initiator != null && initiator.compareTo("receiverSaveLocation") == 0 ) {
-            Long t = intent.getLongExtra("SaveTimeStamp",0);
-            if ( t > 0 ) {
-                reportSuccessfullSave(t);
+            if ( ! serviceIsActive ) {
+                if (alarmMgr == null) {
+                    alarmMgr = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+                }
+                if (alarmIntent == null) {
+                    Intent newIntent = new Intent(this, receiverSaveLocation.class);
+                    alarmIntent = PendingIntent.getBroadcast(this, 0, newIntent, 0);
+                }
+                alarmMgr.cancel(alarmIntent);
+                stopSelf(startId);
+            } else {
+                Long t = intent.getLongExtra("SaveTimeStamp", 0);
+                if (t != -1) {
+                    reportSuccessfullSave(t);
+                }
             }
-        } else {
+
+            return Service.START_NOT_STICKY;
+        }
+
+        topatuConfig config = new topatuConfig(this);
+
+        //
+        // Show permanent entry in Notification Bar
+        //
+        if ( serviceIsActive ) {
+            if (notificationMgr == null) {
+                notificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            }
+            Notification not = new Notification(R.drawable.ic_launcher, this.getString(R.string.showtext_notification_enabled), System.currentTimeMillis());
+            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
+            not.flags = Notification.FLAG_ONGOING_EVENT;
+            not.setLatestEventInfo(this, this.getString(R.string.showtext_notification_text), this.getString(R.string.showtext_notification_longtext), contentIntent);
+            notificationMgr.notify(1, not);
+        }
+
+        serviceIsActive = true;
+
+        //
+        // Launch periodic job
+        //
+        if ( config.getUploadLocation() || config.getSaveHistory() ) {
             if (alarmMgr == null) {
                 alarmMgr = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
             }
@@ -95,30 +128,13 @@ public class serviceLocationUploader extends Service {
                 Intent newIntent = new Intent(this, receiverSaveLocation.class);
                 alarmIntent = PendingIntent.getBroadcast(this, 0, newIntent, 0);
             }
+            alarmMgr.cancel(alarmIntent);
             //alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, 30000, alarmIntent);
             alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 0, config.getIntervalLocationSave() * 1000, alarmIntent);
-
-
-            //
-            // Show permanent entry in Notification Bar
-            //
-
-            //Intent intent = new Intent(MainActivity.getAppContext(), receiverPullFriendData.class);
-            //alarmIntent = PendingIntent.getBroadcast(MainActivity.getAppContext(), 0, intent, 0);
-            if (notificationMgr == null) {
-                notificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            }
-            Notification not = new Notification(R.drawable.ic_launcher, this.getString(R.string.notification_enabled), System.currentTimeMillis());
-            //PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, main.class), Notification.FLAG_ONGOING_EVENT);
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
-            not.flags = Notification.FLAG_ONGOING_EVENT;
-            //not.setLatestEventInfo(this, "Application Name", "Application Description", contentIntent);
-            not.setLatestEventInfo(this, this.getString(R.string.notification_text), this.getString(R.string.notification_longtext), contentIntent);
-            notificationMgr.notify(1, not);
-
+        } else {
+            stopSelf();
         }
 
-        //return Service.START_NOT_STICKY;
         return Service.START_NOT_STICKY;
     }
 
@@ -130,33 +146,27 @@ public class serviceLocationUploader extends Service {
     }
 
     private void reportSuccessfullSave ( long timeStamp ) {
-        if ( latestSavedlocation == 0 ) {
-            latestSavedlocation = timeStamp;
-        } else {
-            Log.v(LOGTAG,"serviceLocationUploader - reportSuccessfullSave - " + (timeStamp - latestSavedlocation) + " (" + config.getIntervalLocationUpload() + ")");
-            if ( timeStamp - latestSavedlocation > config.getIntervalLocationUpload() * 1000 ) {
+        Log.v(LOGTAG,"serviceLocationUploader - reportSuccessfullSave - " + (timeStamp - latestLocationUploaded) + " (" + config.getIntervalLocationUpload() + ")");
+        if ( config.getUploadLocation() && timeStamp - latestLocationUploaded > config.getIntervalLocationUpload() * 1000 ) {
+            String myID = config.getID();
+            String myServer = config.getServer();
 
-                //String myID = PreferenceManager.getDefaultSharedPreferences(this).getString(this.getString(R.string.settings_my_id), "No own UUID!!!!!!");
-                //String myServer = PreferenceManager.getDefaultSharedPreferences(this).getString(this.getString(R.string.settings_my_server), this.getString(R.string.settings_my_server_default));
-                String myID = config.getID();
-                String myServer = config.getServer();
+            if ( myID == null || myID.compareTo("No own UUID!!!!!!") == 0 ) { return; }
 
-                if ( myID == null || myID.compareTo("No own UUID!!!!!!") == 0 ) { return; }
+            LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+            Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), false));
 
-                LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-                Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(new Criteria(), false));
+            if ( location == null ) { return; }
 
-                if ( location == null ) { return; }
+            miataruFriend me = new miataruFriend(myID,myServer);
+            //location.setTime(System.currentTimeMillis());
+            //location.setTime(timeStamp);
+            location.setTime(System.currentTimeMillis());
+            me.setLocation(location);
 
-                miataruFriend me = new miataruFriend(myID,myServer);
-                //location.setTime(System.currentTimeMillis());
-                //location.setTime(timeStamp);
-                me.setLocation(location);
+            new MiataruUpload().execute(me);
 
-                new MiataruUpload().execute(me);
-
-                latestSavedlocation = timeStamp;
-            }
+            latestLocationUploaded = timeStamp;
         }
     }
 
@@ -303,7 +313,7 @@ public class serviceLocationUploader extends Service {
             }
             if ( answerCode.compareTo("ACK") == 0 ) {
                 //return "Location uploaded ("+answerDetails+")";
-                latestSavedlocation = me.getTimeStamp();
+                latestLocationUploaded = me.getTimeStamp();
                 return serviceLocationUploader.this.getString(R.string.showtext_location_uploaded);
             } else if ( answerCode.compareTo("NACK") == 0 ) {
                 return "Error: "+answerDetails;
