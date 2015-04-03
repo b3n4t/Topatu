@@ -5,7 +5,6 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Criteria;
@@ -41,6 +40,7 @@ public class serviceLocationUploader extends Service {
     private static AlarmManager alarmMgr;
     private static PendingIntent alarmIntent;
 
+    private static Notification myNotification;
     private long latestLocationUploaded = 0;
     private boolean serviceIsActive = false;
 
@@ -65,7 +65,6 @@ public class serviceLocationUploader extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        serviceIsActive = true;
 
         //TODO do something useful
         String initiator = intent.getStringExtra("StartedFrom");
@@ -104,15 +103,17 @@ public class serviceLocationUploader extends Service {
         //
         // Show permanent entry in Notification Bar
         //
-        if ( serviceIsActive ) {
+        if ( ! serviceIsActive ) {
             if (notificationMgr == null) {
                 notificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             }
-            Notification not = new Notification(R.drawable.ic_launcher, this.getString(R.string.showtext_notification_enabled), System.currentTimeMillis());
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
-            not.flags = Notification.FLAG_ONGOING_EVENT;
-            not.setLatestEventInfo(this, this.getString(R.string.showtext_notification_text), this.getString(R.string.showtext_notification_longtext), contentIntent);
-            notificationMgr.notify(1, not);
+            if ( myNotification == null ) {
+                myNotification = new Notification(R.drawable.ic_launcher, this.getString(R.string.showtext_notification_enabled), System.currentTimeMillis());
+                PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
+                myNotification.flags = Notification.FLAG_ONGOING_EVENT;
+                myNotification.setLatestEventInfo(this, this.getString(R.string.showtext_notification_text), this.getString(R.string.showtext_notification_longtext), contentIntent);
+            }
+            notificationMgr.notify(1, myNotification);
         }
 
         serviceIsActive = true;
@@ -140,9 +141,11 @@ public class serviceLocationUploader extends Service {
 
     @Override
     public void onDestroy() {
+        if ( serviceIsActive ) {
+            notificationMgr.cancel(1);
+        }
         serviceIsActive = false;
         alarmMgr.cancel(alarmIntent);
-        notificationMgr.cancel(1);
     }
 
     private void reportSuccessfullSave ( long timeStamp ) {
@@ -325,10 +328,23 @@ public class serviceLocationUploader extends Service {
         @Override
         protected void onPostExecute(String result) {
             Log.v(LOGTAG, "serviceIsActive - MiataruUpload - onPostExecute");
-            if ( ! result.startsWith(serviceLocationUploader.this.getString(R.string.showtext_location_uploaded)) ) {
-                Toast.makeText(serviceLocationUploader.this, result, Toast.LENGTH_LONG).show();
-            } else if ( MainActivity.Debug > 0 ) {
-                Toast.makeText(serviceLocationUploader.this, result, Toast.LENGTH_LONG).show();
+            if ( serviceIsActive ) {
+                if ( result.startsWith(serviceLocationUploader.this.getString(R.string.showtext_location_uploaded)) ) {
+                    /*
+                    if (notificationMgr != null && myNotification != null) {
+                        notificationMgr.cancel(1);
+                        notificationMgr.notify(1, myNotification);
+                    }
+                    */
+                    if (MainActivity.Debug > 0) {
+                        Toast.makeText(serviceLocationUploader.this, result, Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(serviceLocationUploader.this, result, Toast.LENGTH_LONG).show();
+                    if (notificationMgr != null && myNotification != null) {
+                        notificationMgr.notify(1, myNotification);
+                    }
+                }
             }
             //Log.d(LOGTAG,result);
             //dbgoutput(result);

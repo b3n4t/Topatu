@@ -1,6 +1,7 @@
 package com.example.topatu;
 
 import android.location.Location;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
@@ -22,6 +23,7 @@ public class miataruFriend implements Parcelable {
     private double Altitude;
     private float Accuracy;
     private long TimeStamp = -1;
+    private Bundle Extras;
 
     //
     //
@@ -33,11 +35,14 @@ public class miataruFriend implements Parcelable {
             throw new IllegalArgumentException("Invalid UUID");
         }
         this.UUID = UUID;
-        if ( Server != null || Server.length() > 0 ) {
+        if ( Server != null && Server.length() > 0 ) {
             this.Server = Server;
         } else {
+            // We have no context, so we cannot read from strings file
             Server = "service.miataru.com";
+            //Server = new String(R.string.settings_my_server_default);
         }
+        this.Extras = new Bundle();
     }
 
     public miataruFriend(String UUID, String Server, String Alias) {
@@ -60,6 +65,7 @@ public class miataruFriend implements Parcelable {
         UUID = in.readString();
         Server = in.readString();
         Alias = in.readString();
+        Extras = in.readBundle();
 
         hasLocation = in.readInt() != 0;
         if ( hasLocation ) {
@@ -78,6 +84,7 @@ public class miataruFriend implements Parcelable {
         dest.writeString(UUID);
         dest.writeString(Server);
         dest.writeString(Alias);
+        dest.writeBundle(Extras);
 
         dest.writeInt(hasLocation ? 1 : 0);
         if ( hasLocation ) {
@@ -93,7 +100,6 @@ public class miataruFriend implements Parcelable {
     public int describeContents() {
         return 0;
     }
-
 
     public static final Parcelable.Creator<miataruFriend> CREATOR = new Parcelable.Creator<miataruFriend>() {
         public miataruFriend createFromParcel(Parcel in) {
@@ -132,20 +138,18 @@ public class miataruFriend implements Parcelable {
 
     public String getLongDescription () {
         String text;
-        text = UUID + "\nOn server: "+Server;
-        if ( Alias != null && Alias.length() > 0 ) {
-            text = text + "\nAlias: " + Alias;
-        }
+        text = UUID + "\n" + MainActivity.getAppContext().getString(R.string.showtext_friendinfo_server) + ": "+Server;
+        //if ( Alias != null && Alias.length() > 0 ) { text = text + "\nAlias: " + Alias; }
         if ( hasLocation ) {
-            text = text + "\n" + String.format( "Lon: %.2f; Lat: %.2f (%.0f)", Longitude, Latitude, Accuracy );
+            text = text + "\n" + String.format( "Lon: %.2f; Lat: %.2f (%.0f) %s: ", Longitude, Latitude, Accuracy, MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated) );
         }
-        text = text + "\nLast updated: " + getUpdateTime() + "(" + TimeStamp + ")";
+        text = text + getUpdateTime();
 
         return text;
     }
 
     public String getUpdateTime () {
-        if ( ! hasLocation || TimeStamp < 0 ) { return "N/A"; }
+        if ( ! hasLocation || TimeStamp < 0 ) { return MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated_n_a); }
 
         long timediff  = (System.currentTimeMillis() - TimeStamp) / 1000;
 
@@ -157,15 +161,16 @@ public class miataruFriend implements Parcelable {
 
         if ( timediff > 60*60*24*2 ) {
             timediff = timediff / (60*60*24);
-            answer = timediff+" d";
+            answer = timediff + " " + MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated_day);
         } else if ( timediff > 60*60*2 ) {
             timediff = timediff / (60*60);
-            answer = timediff+" h";
+            answer = timediff + " " + MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated_hour);
         } else if ( timediff > 60*2 ) {
             timediff = timediff / 60;
-            answer = timediff+" m";
+            answer = timediff + " " + MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated_minute);
         } else {
-            answer = timediff+" s";
+            //answer = timediff+" s";
+            answer = timediff + " " + MainActivity.getAppContext().getString(R.string.showtext_friendinfo_updated_second);
         }
         return answer;
     }
@@ -210,6 +215,10 @@ public class miataruFriend implements Parcelable {
     public float getAccuracy () { return Accuracy; }
 
     public long getTimeStamp () { return TimeStamp; }
+
+    public Bundle getExtras() { return Extras; }
+
+    public void putExtras (Bundle b) { Extras.putAll(b); }
 
     //
     //

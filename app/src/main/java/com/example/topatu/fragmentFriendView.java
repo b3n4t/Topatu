@@ -6,8 +6,9 @@ import android.app.AlertDialog;
 import android.app.ListFragment;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.graphics.Color;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -17,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -27,7 +29,7 @@ import java.util.ArrayList;
 /**
  * Created by Ixa on 09/02/2015.
  */
-public class fragmentFriendView extends ListFragment implements persistentFriends.friendEvents, AdapterView.OnItemLongClickListener, AdapterView.OnItemClickListener {
+public class fragmentFriendView extends ListFragment implements persistentFriends.friendEvents, AdapterView.OnItemClickListener {
 
     private static String LOGTAG = "TopatuLog";
     private OnFriendSelected listener;
@@ -84,6 +86,20 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
     // GUI to add new friend
     //
     //
+    @Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        Log.v(LOGTAG,"fragmentFriendView - onItemClick - Old friend (" + selectedItem + ") and new (" + position +")");
+        if ( selectedItem == position ) {
+            selectedItem = -1;
+            selectedFriend = null;
+        } else {
+            selectedItem = position;
+            selectedFriend = friends.get(selectedItem);
+        }
+        setMenuStatus();
+        adapter.notifyDataSetChanged();
+    }
+
     private void setMenuStatus ( ) {
         boolean menuStatus;
         int menuAlpha;
@@ -100,26 +116,21 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
         menuEntry = myMenu.findItem(R.id.show_on_map);
         menuEntry.setEnabled(menuStatus);
         menuEntry.getIcon().setAlpha(menuAlpha);
-        menuEntry = myMenu.findItem(R.id.edit_friend);
-        menuEntry.setEnabled(menuStatus);
-        menuEntry.getIcon().setAlpha(menuAlpha);
-        menuEntry = myMenu.findItem(R.id.delete_friend);
-        menuEntry.setEnabled(menuStatus);
-        menuEntry.getIcon().setAlpha(menuAlpha);
-    }
-
-    @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        Log.v(LOGTAG,"fragmentFriendView - onItemClick - Old friend (" + selectedItem + ") and new (" + position +")");
-        if ( selectedItem == position ) {
-            selectedItem = -1;
-            selectedFriend = null;
+        if ( selectedItem != -1 && selectedFriend.getServer().compareTo(MainActivity.getAppContext().getString(R.string.settings_my_server_local)) != 0 ) {
+            menuEntry = myMenu.findItem(R.id.edit_friend);
+            menuEntry.setEnabled(menuStatus);
+            menuEntry.getIcon().setAlpha(menuAlpha);
+            menuEntry = myMenu.findItem(R.id.delete_friend);
+            menuEntry.setEnabled(menuStatus);
+            menuEntry.getIcon().setAlpha(menuAlpha);
         } else {
-            selectedItem = position;
-            selectedFriend = friends.get(selectedItem);
+            menuEntry = myMenu.findItem(R.id.edit_friend);
+            menuEntry.setEnabled(false);
+            menuEntry.getIcon().setAlpha(0x40);
+            menuEntry = myMenu.findItem(R.id.delete_friend);
+            menuEntry.setEnabled(false);
+            menuEntry.getIcon().setAlpha(0x40);
         }
-        setMenuStatus();
-        adapter.notifyDataSetChanged();
     }
 
     @Override
@@ -141,86 +152,120 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
             case R.id.show_on_map:
                 listener.onFriendSelected(selectedItem);
                 return true;
+            case R.id.edit_friend:
+                if ( selectedFriend.getServer().compareTo(MainActivity.getAppContext().getString(R.string.settings_my_server_local)) != 0 ) {
+                    showFriendDialog(selectedFriend, false);
+                    return false;
+                }
+                return false;
+            case R.id.delete_friend:
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setMessage(R.string.showtext_friendinfo_confirm_deletion);
+                builder.setNegativeButton(R.string.showtext_friendinfo_no,new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        dialog.cancel();
+                    }
+                });
+                builder.setPositiveButton(R.string.showtext_friendinfo_yes,new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        friendData.removeFriend(selectedFriend);
+                    }
+                });
+                AlertDialog editDialog = builder.create();
+                editDialog.show();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
     private void showFriendDialog (miataruFriend friend) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        if ( friend == null ) {
-            builder.setTitle("New Friend:");
+        if ( friend != null ) {
+            showFriendDialog(friend, false);
         } else {
-            builder.setTitle("Edit Friend:");
+            showFriendDialog(null, true);
         }
-        builder.setMessage("Alias:");
-        final EditText newAlias = new EditText (getActivity());
-        newAlias.setHint("Alias to identify this device");
-        if ( friend != null && friend.getAlias() != null && friend.getAlias().length() > 0 ) {
-            newAlias.setText(friend.getAlias());
-        }
+    }
 
-        builder.setView(newAlias);
-        builder.setPositiveButton("Ok",new DialogInterface.OnClickListener() {
+    private void showFriendDialog (miataruFriend friend, boolean isNew ) {
+        final EditText viewID;
+        final EditText viewServer;
+        final EditText viewAlias;
+        final Button okButton;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+        View v = getActivity().getLayoutInflater().inflate(R.layout.dialog_friend,null);
+        builder.setView(v);
+
+
+        viewID = (EditText)v.findViewById(R.id.friend_uuid);
+        viewServer = (EditText)v.findViewById(R.id.friend_server);
+        viewAlias = (EditText)v.findViewById(R.id.friend_alias);
+
+        if ( isNew ) {
+            builder.setTitle(R.string.showtext_friendinfo_new_friend);
+
+            builder.setPositiveButton(R.string.showtext_friendinfo_accept,new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                    if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG,"***** New friend '" + viewID.getText().toString() + "' '" + viewServer.getText().toString() + "' '" + viewAlias.getText().toString() + "'"); }
+                    friendData.addFriend(viewID.getText().toString(),
+                            viewServer.getText().toString(),
+                            viewAlias.getText().toString() );
+                }
+            });
+
+        } else {
+            builder.setTitle(R.string.showtext_friendinfo_edit_friend);
+            viewID.setText(friend.getUUID());
+            viewServer.setText(friend.getServer());
+            if ( friend.getUUID() != null && friend.getUUID().length() > 0 ) {
+                viewAlias.setText(friend.getAlias());
+            }
+
+            builder.setPositiveButton(R.string.showtext_friendinfo_accept,new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                    friendData.editFriend(selectedFriend, viewID.getText().toString(),
+                            viewServer.getText().toString(),
+                            viewAlias.getText().toString());
+                }
+            });
+        }
+        builder.setNegativeButton(R.string.showtext_friendinfo_cancel,new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                if ( MainActivity.Debug > 0 ) { Log.v(LOGTAG,"***** Set '" + newAlias.getText() + "' to '" + selectedFriend.getUUID() + "'"); }
-                //String value1 = servername.getText().toString();
-                //String value2 = username.getText().toString();
-                //String value3 = password.getText().toString();
-                // Do something with value!
+                dialog.cancel();
             }
         });
-        builder.setNegativeButton("Cancel",new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                // User cancelled the dialog
-            }
-        });
+
         AlertDialog editDialog = builder.create();
         editDialog.show();
+        okButton = editDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        if ( isNew ) {
+            okButton.setEnabled(false);
+        }
 
 
-    }
-
-    //
-    //
-    // Click listeners
-    //
-    //
-    public boolean onItemLongClick(AdapterView parent, View view, final int position, long id) {
-        selectedFriend = friends.get(position);
-        // if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"LongClickMenu - Item " + position); }
-        //final CharSequence[] items = { "View in Map", "Edit alias", "Delete" };
-        final CharSequence[] items = MainActivity.getAppContext().getResources().getStringArray(R.array.showtext_menu_dialog_content);
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle(R.string.showtext_menu_dialog_title);
-        builder.setItems(items, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int item) {
-                if ( selectedFriend == null ) { return; }
-                //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG,"Popup Menu Item selected "+item); }
-                switch (item ) {
-                    case 0:
-                        Log.v(LOGTAG, "Action: To Map ("+selectedFriend.getAlias()+")");
-                        listener.onFriendSelected(position);
-                        break;
-                    case 1:
-                        //if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Action: Edit ("+selectedFriend.getAlias()+")"); }
-                        showFriendDialog(selectedFriend);
-                        break;
-                    case 2:
-                        if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Action: Delete ("+selectedFriend.getAlias()+")"); }
-                        friendData.removeFriend(selectedFriend);
-                        //Toast toast = Toast.makeText(getActivity(), "Item deleted "+selectedFriend.getUUID(), Toast.LENGTH_SHORT);
-                        //toast.show();
-                        break;
-                    default: if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "Action: Wrong selection");break; }
+        TextWatcher textChanged = new TextWatcher() {
+            public void afterTextChanged(Editable s) {
+                if (viewID.getText().toString().length() == 0 || viewServer.getText().toString().length() == 0) {
+                    okButton.setEnabled(false);
+                } else {
+                    okButton.setEnabled(true);
                 }
             }
-        });
-        AlertDialog alert = builder.create();
-        alert.show();
 
-        return false;
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+        };
+
+        viewID.addTextChangedListener(textChanged);
+        viewServer.addTextChangedListener(textChanged);
+        viewAlias.addTextChangedListener(textChanged);
     }
+
 
     //
     //
@@ -285,6 +330,12 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
             TextView maintext = (TextView) rowView.findViewById(R.id.firstLine);
             TextView secondarytext = (TextView) rowView.findViewById(R.id.secondLine);
 
+            miataruFriend friend = values.get(position);
+
+            maintext.setText(friend.getShowText());
+            secondarytext.setText(friend.getSecondaryText());
+            update.setText(friend.getUpdateTime());
+
             //if ( position == fragmentFriendView.this.getListView().getSelectedItemPosition() ) {
             if ( position == selectedItem ) {
                 rowView.setBackgroundResource(R.color.topatu_backgroundselected);
@@ -297,12 +348,6 @@ public class fragmentFriendView extends ListFragment implements persistentFriend
                 maintext.setBackgroundResource(R.color.topatu_backgroundnormal);
                 secondarytext.setBackgroundResource(R.color.topatu_backgroundnormal);
             }
-            miataruFriend friend = values.get(position);
-
-            maintext.setText(friend.getShowText());
-            secondarytext.setText(friend.getSecondaryText());
-
-            update.setText(friend.getUpdateTime());
 
             return rowView;
         }

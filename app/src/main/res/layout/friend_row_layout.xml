@@ -28,7 +28,7 @@
         android:text="UUID"
         android:textColor="@color/topatu_textcolor"
         android:background="@color/topatu_backgroundnormal"
-        android:textSize="12sp" />
+        android:textSize="12dp" />
 
     <TextView
         android:id="@+id/firstLine"
@@ -43,6 +43,6 @@
         android:text="Alias"
         android:textColor="@color/topatu_textcolor"
         android:background="@color/topatu_backgroundnormal"
-        android:textSize="16sp" />
+        android:textSize="16dp" />
 
 </RelativeLayout>

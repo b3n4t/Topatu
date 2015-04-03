@@ -7,6 +7,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Criteria;
 import android.location.Location;
@@ -19,7 +20,6 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Hashtable;
 
 /**
  * Created by Tricky on 21/02/2015.
@@ -37,7 +37,7 @@ public class persistentFriends extends BroadcastReceiver {
     private static String myID;
     private static String myServer;
     private static miataruFriend mySelf;
-    private static Hashtable<String, Location> locations = new Hashtable<>();
+    private static miataruFriend mySelfInCloud;
 
     private static LocationManager locationManager;
     private static LocationListener locationListener;
@@ -73,6 +73,33 @@ public class persistentFriends extends BroadcastReceiver {
             Log.v(LOGTAG, "persistentFriends - " + (instances.size() + 1) + " until now");
         }
 
+        // If we are the first ones, open the DB
+        if (instances.size() == 0 && dbHelper != null) {
+            Log.e(LOGTAG, "First Friends object, but DB is already configured!");
+            //throw new Exception("Internal error - Fit Friends object, but DB is already configured");
+            return;
+        }
+
+        if ( dbHelper == null ) {
+            dbHelper = new storageFriends(MainActivity.getAppContext());
+        }
+
+        if (instances.size() == 0) {
+            //DBOpen();
+
+            if (friendList.size() == 0 || friendList.get(0).equals(mySelf)) {
+                friendList.addAll(fillDefault());
+                new loadFromDB().execute();
+            }
+        }
+
+        instances.add(this);
+        clean = false;
+    }
+
+    private ArrayList<miataruFriend> fillDefault () {
+        ArrayList<miataruFriend> f = new ArrayList<miataruFriend>();
+
         if ( myID == null ||myServer == null ) {
             //SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext());
             //myID = settings.getString(MainActivity.getAppContext().getString(R.string.settings_my_id), null);
@@ -82,29 +109,16 @@ public class persistentFriends extends BroadcastReceiver {
         }
         if ( myID != null && mySelf == null) {
             mySelf = new miataruFriend(myID, MainActivity.getAppContext().getString(R.string.settings_my_server_local), MainActivity.getAppContext().getString(R.string.showtext_myid_local));
-            friendList.add(mySelf);
-            friendList.add(new miataruFriend(myID, myServer, MainActivity.getAppContext().getString(R.string.showtext_myid_remote)));
-            Log.v(LOGTAG,"Adding myself to the list " + mySelf.getUUID());
-        }
-
-        // If we are the first ones, open the DB
-        if (instances.size() == 0 && dbHelper != null) {
-            Log.e(LOGTAG, "First Friends object, but DB is already configured!");
-            //throw new Exception("Internal error - Fit Friends object, but DB is already configured");
-            return;
-        }
-
-        if (instances.size() == 0) {
-            DBOpen();
-
-            if (friendList.size() == 0 || friendList.get(0).equals(mySelf)) {
-                new loadFromDB().execute();
+            f.add(mySelf);
+            if (MainActivity.Debug > 0) {
+                mySelfInCloud = new miataruFriend(myID, myServer, MainActivity.getAppContext().getString(R.string.showtext_myid_remote));
+                f.add(mySelfInCloud);
             }
+            if (MainActivity.Debug > 5) { Log.v(LOGTAG,"Adding myself to the list " + mySelf.getUUID()); }
         }
-
-        instances.add(this);
-        clean = false;
+        return f;
     }
+
 
     protected void finalize() {
         if (!clean) {
@@ -132,16 +146,6 @@ public class persistentFriends extends BroadcastReceiver {
         //activeinstances--;
         instances.remove(this);
         clean = true;
-
-        // If this was the last active object, close the DB
-        if (instances.size() == 0) {
-            if (MainActivity.Debug > 0) {
-                Log.v(LOGTAG, "persistentFriends - Last object destroyed. Closing DB and stopping everything");
-            }
-            DBClose();
-
-            locations.clear();
-        }
     }
 
     public void registerCallback(friendEvents callback) {
@@ -332,6 +336,10 @@ public class persistentFriends extends BroadcastReceiver {
         if ( mySelf != null ) {
             // TODO We need to processing here, but meanwhile....
 
+            if ( mySelfInCloud != null ) {
+                mySelfInCloud.setServer(config.getServer());
+            }
+
             mySelf.setLocation(location);
             callingTheCallbacks();
         }
@@ -342,12 +350,47 @@ public class persistentFriends extends BroadcastReceiver {
     // General methods to add remove friends from DB
     //
     //
+    private miataruFriend friendExists(String UUID, String server ) {
+        if ( UUID != null && server != null ) {
+            miataruFriend friend;
+            for (int x = 0; x < friendList.size(); x++) {
+                friend = friendList.get(x);
+                if (friend.getUUID().compareTo(UUID) == 0 && friend.getServer().compareTo(server) == 0) {
+                    return friend;
+                }
+            }
+        }
+        return null;
+    }
+
     public static String getMyID () {
         return myID;
     }
 
     public static miataruFriend getMySelf () {
         return mySelf;
+    }
+    private boolean checkIfMyself ( miataruFriend friend ) {
+        if ( mySelf == null ) {
+            return false;
+        }
+        if ( friend.equals(mySelf) ) {
+            return true;
+        }
+        if ( friend.equals(mySelfInCloud) ) {
+            return true;
+        }
+        return false;
+    }
+
+    public void addFriend(miataruFriend newFriend) {
+        if ( newFriend != null ) {
+            if ( friendList.indexOf(newFriend) >= 0 || friendExists(newFriend.getUUID(),newFriend.getServer()) != null ) {
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_exists, Toast.LENGTH_LONG).show();
+            } else {
+                this.addFriend(newFriend.getUUID(),newFriend.getServer(),newFriend.getAlias());
+            }
+        }
     }
 
     public void addFriend(String UUID, String Server) {
@@ -356,12 +399,14 @@ public class persistentFriends extends BroadcastReceiver {
 
     public void addFriend(String UUID, String server, String alias) {
         // Check if UUID has some content
-        if (UUID == null || UUID.length() == 0) {
+        if (UUID == null || UUID.length() == 0 || server == null || server.length() == 0) {
+            Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_invalid_friend_data, Toast.LENGTH_LONG).show();
             return;
         }
         // Check that we don't have already that UUID
         for (int x = 0; x < friendList.size(); x++) {
-            if (friendList.get(x).getUUID().compareTo(UUID) == 0) {
+            if (friendList.get(x).getUUID().compareTo(UUID) == 0 && friendList.get(x).getServer().compareTo(server) == 0) {
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_exists, Toast.LENGTH_LONG).show();
                 return;
             }
         }
@@ -370,12 +415,15 @@ public class persistentFriends extends BroadcastReceiver {
         miataruFriend newFriend = new miataruFriend(UUID, server, alias);
         friendList.add(newFriend);
 
+        callingTheCallbacks();
+
         // Add the new object the DB
-        this.DBAddFriend(newFriend);
+        //this.DBAddFriend(newFriend);
+        new addToDB().execute(newFriend);
     }
 
     public void removeFriend(miataruFriend friend) {
-        if (!friend.equals(mySelf)) {
+        if ( !checkIfMyself(friend) ) {
             if (friendList.contains(friend)) {
                 friendList.remove(friend);
                 callingTheCallbacks();
@@ -384,85 +432,77 @@ public class persistentFriends extends BroadcastReceiver {
         }
     }
 
-    public void removeFriend(String UUID) {
+    public void removeFriend(String UUID, String server) {
         boolean found = false;
         miataruFriend friend = null;
 
-        if ( myID != null && myID.compareTo(UUID) != 0 ) {
+        if ( UUID != null && server != null ) {
             for (int x = 0; x < friendList.size(); x++) {
                 friend = friendList.get(x);
-                if (friend.getUUID().compareTo(UUID) == 0) {
-                    friendList.remove(x);
+                if (friend.getUUID().compareTo(UUID) == 0 && friend.getServer().compareTo(server) == 0) {
+                    found = true;
                     break;
                 }
             }
 
-            if (friend != null) {
-                //DBRemoveFriend(friend);
+            if (found && friend != null && ! checkIfMyself(friend)) {
+                friendList.remove(friend);
                 callingTheCallbacks();
                 new deleteFromDB().execute(friend);
             }
         }
     }
 
+    public void editFriend(miataruFriend current, String UUID, String server, String alias) {
+        String newID = UUID;
+        String newServer = server;
+        String newAlias = alias;
+        boolean newData = false;
+        Bundle changes = new Bundle();
+
+        if ( UUID != null || server != null || alias != null ) {
+            if ( newID != null &&  newID.compareTo(current.getUUID()) != 0 ) {
+                newData = true;
+                changes.putString("OrigUUID", current.getUUID());
+            } else {
+                newID = current.getUUID();
+            }
+            if ( newServer != null && newServer.compareTo(current.getServer()) != 0 ) {
+                newData = true;
+                changes.putString("OrigServer", current.getServer());
+            } else {
+                newServer = current.getServer();
+            }
+            if ( newData && friendExists(newID,newServer) != null ) {
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_exists, Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if ( newAlias != null && newAlias.compareTo(current.getAlias()) != 0 ) {
+                newData = true;
+                changes.putString("OrigAlias", current.getAlias() );
+            }
+            if ( newData ) {
+                current.setUUID(UUID);
+                current.setServer(server);
+                current.setAlias(alias);
+
+
+                current.putExtras(changes);
+                callingTheCallbacks();
+
+                new editInDB().execute(current);
+            } else {
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_nothing_to_change, Toast.LENGTH_SHORT).show();
+            }
+        }
+
+    }
+
     public static ArrayList<miataruFriend> getFriends() {
         return friendList;
     }
 
-    //
-    //
-    // DB access internal funtcions
-    //
-    //
-    private void DBOpen() {
-        if (instances.size() == 0) {
-            if (MainActivity.Debug > 10) {
-                Log.v(LOGTAG, "Starting new DB instance");
-            }
-            dbHelper = new storageFriends(MainActivity.getAppContext());
-            if (MainActivity.Debug > 10) {
-                Log.v(LOGTAG, "opening a writable DB");
-            }
-            database = dbHelper.getWritableDatabase();
-            if (MainActivity.Debug > 10) {
-                Log.v(LOGTAG, "DB open");
-            }
-        }
-    }
-
-    private void DBClose() {
-        if (dbHelper != null && instances.size() == 0) {
-            dbHelper.close();
-            database = null;
-            dbHelper = null;
-        }
-    }
-
-    private void DBAddFriend(miataruFriend friend) {
-        // Add to DB (and remove from "friends" if it could not be added
-        // Show a toast in case of error or success
-
-        // Check that the ID doesn't exists
-        for (int x = 0; x < friendList.size(); x++) {
-            if (friendList.get(x).getUUID().compareTo(friend.getUUID()) == 0) {
-                // Duplicate UUID found
-                Toast.makeText(MainActivity.getAppContext(), "This ID already exists", Toast.LENGTH_LONG).show();
-                return;
-            }
-        }
-
-        ContentValues values = new ContentValues();
-        values.put(storageFriends.COLUMN_UUID, friend.getUUID());
-        values.put(storageFriends.COLUMN_SERVER, friend.getServer());
-        values.put(storageFriends.COLUMN_ALIAS, friend.getAlias());
-
-        long insertId = database.insert(storageFriends.TABLE_FRIENDS, null, values);
-
-    }
-
-    private void DBRemoveFriend(miataruFriend friend) {
-
-    }
 
     //
     //
@@ -597,50 +637,48 @@ public class persistentFriends extends BroadcastReceiver {
         protected ArrayList<miataruFriend> doInBackground(Void... none) {
             // Do SQL select and read all the friend info
             ArrayList<miataruFriend> internalFriends = new ArrayList<miataruFriend>();
+            //internalFriends.add(new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "service.miataru.com", "Demo Miataru device"));
 
-            try {
-                Thread.sleep(3000);                 //1000 milliseconds is one second.
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+            String[] columns = {
+                    storageFriends.COLUMN_UUID,
+                    storageFriends.COLUMN_SERVER,
+                    storageFriends.COLUMN_ALIAS
+            };
+
+            Cursor cursor = db.query(
+                    storageFriends.TABLE_FRIENDS,
+                    columns,
+                    null,    // selection
+                    null,    // selectionArgs
+                    null,    // groupBy
+                    null,    // having
+                    null);   // orderBy
+
+            ArrayList<miataruFriend> friendsFromDB = new ArrayList<miataruFriend>();
+
+            cursor.moveToFirst();
+
+            while (!cursor.isAfterLast()) {
+                miataruFriend friend;
+
+                String ID = cursor.getString(cursor.getColumnIndex(storageFriends.COLUMN_UUID));
+                String Server = cursor.getString(cursor.getColumnIndex(storageFriends.COLUMN_SERVER));
+                String Alias = cursor.getString(cursor.getColumnIndex(storageFriends.COLUMN_ALIAS));
+
+
+                friend = new miataruFriend(ID, Server);
+                if ( Alias != null ) {
+                    friend.setAlias(Alias);
+                }
+
+                internalFriends.add(friend);
+
+                cursor.moveToNext();
             }
 
-            // Only for debugging purposes
-            //friendList.clear();
-            miataruFriend loc;
-
-            //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"), "Myself");
-            //loc.setLocation(1,1,5,System.currentTimeMillis());
-            //internalFriends.add(loc);
-
-            internalFriends.add(new miataruFriend("BF0160F5-4138-402C-A5F0-DEB1AA1F4216", "service.miataru.com", "Demo Miataru device"));
-
-            if ( myID != null && myID.length() > 0 ) {
-                if (myID.compareTo("07b2a900-6b6b-4e38-9679-6f4610bbb076") != 0) {
-                    internalFriends.add(new miataruFriend("07b2a900-6b6b-4e38-9679-6f4610bbb076", "service.miataru.com", "My test (s duos)"));
-                }
-                if (myID.compareTo("3dcfbbe1-8018-4a88-acec-9d2aa6643e13") != 0) {
-                    internalFriends.add(new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "service.miataru.com", "My test (note)"));
-                }
-            }
-
-            loc = new miataruFriend("00000000-0000-0000-0000-000000000001", "miataru.mendaitz.com", "Mendillorri");
-            loc.setLocation(42.813323, -1.612299, 30, System.currentTimeMillis());
-            internalFriends.add(loc);
-
-            loc = new miataruFriend("00000000-0000-0000-0000-000000000002", "miataru.mendaitz.com", "CarlosV");
-            loc.setLocation(43.364981, -1.793445, 100, System.currentTimeMillis());
-            internalFriends.add(loc);
-
-            //loc = new miataruFriend("3dcfbbe1-8018-4a88-acec-9d2aa6643e13", "Test handy");
-            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 93 * 1000);
-            //internalFriends.add(loc);
-
-            //loc = new miataruFriend("45E41CC2-84E7-4258-8F75-3BA80CC0E652", "miataru.mendaitz.com");
-            //internalFriends.add(loc);
-
-            //loc = new miataruFriend("99999999-9999-9999-9999-999999999999", Long.toString(System.currentTimeMillis()));
-            //loc.setLocation(2.0, 2.0, 50.0, System.currentTimeMillis() - 10 * 1000);
-            //internalFriends.add(loc);
+            db.close();
 
             return internalFriends;
 
@@ -651,6 +689,9 @@ public class persistentFriends extends BroadcastReceiver {
             if (MainActivity.Debug > 2) {
                 Log.v(LOGTAG, "persistentFriends - Friends loaded from DB: " + friendsFromDB.size());
             }
+
+            friendsFromDB.addAll(fillDefault());
+
             tasks.remove(this);
             boolean newData = false;
             // Load the friend list to internal variable
@@ -666,20 +707,11 @@ public class persistentFriends extends BroadcastReceiver {
                 }
                 newData = mergeLists(friendList, friendsFromDB, false);
             } else {
-                friendList.clear();
-
-                //miataruFriend loc;
-                //loc = new miataruFriend(PreferenceManager.getDefaultSharedPreferences(MainActivity.getAppContext()).getString("my_id", "No own UUID!!!!!!"),"Myself");
-                //loc.setLocation(1,1,5,System.currentTimeMillis());
-                //friendList.add(loc);
-
                 friendList.addAll(friendsFromDB);
                 newData = true;
             }
 
-            if (MainActivity.Debug > 5) {
-                Log.v(LOGTAG, "persistentFriends - Friend list changed: " + newData);
-            }
+            if (MainActivity.Debug > 5) { Log.v(LOGTAG, "persistentFriends - Friend list changed: " + newData); }
 
             // call all the callbacks
             if (newData) {
@@ -709,33 +741,211 @@ public class persistentFriends extends BroadcastReceiver {
 
             miataruFriend friend = friendToDelete[0];
 
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
 
-            try {
-                Thread.sleep(1000);                 //1000 milliseconds is one second.
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
+            String selection = storageFriends.COLUMN_UUID + " LIKE ? AND " + storageFriends.COLUMN_SERVER + " LIKE ?";
+            String[] selectionArgs = { friend.getUUID(), friend.getServer() };
 
-            if (friendToDelete[0].getAlias() != null && friendToDelete[0].getAlias().compareTo("Test handy") == 0) {
+            int numRows = db.delete(
+                    storageFriends.TABLE_FRIENDS,
+                    selection,
+                    selectionArgs
+            );
+
+            db.close();
+
+            if ( numRows == 1 ) {
                 return null;
+            } else {
+                return friend;
             }
-
-            return friend;
         }
 
         @Override
         protected void onPostExecute(miataruFriend deletedFriend) {
             tasks.remove(this);
             if (deletedFriend == null) {
-                Toast.makeText(MainActivity.getAppContext(), "Friend deleted", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_deleted, Toast.LENGTH_SHORT).show();
                 //friendList.remove(deletedFriend);
             } else {
-                Toast.makeText(MainActivity.getAppContext(), "Friend could not be deleted", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.getAppContext(), R.string.showtext_alert_friend_couldnt_delete, Toast.LENGTH_SHORT).show();
                 friendList.add(deletedFriend);
                 callingTheCallbacks();
             }
         }
     }
+
+    //
+    //
+    // AsyncTask to add one friend to the list
+    //
+    //
+    private class addToDB extends AsyncTask<miataruFriend, Void, miataruFriend> {
+        @Override
+        protected void onPreExecute() {
+            tasks.add(this);
+        }
+
+        @Override
+        protected miataruFriend doInBackground(miataruFriend... friendToDelete) {
+            // Delete friend from DB
+            // If success return "null", if error return the friend to be added again to the list
+            if (friendToDelete.length == 0) {
+                return null;
+            }
+
+            miataruFriend friend = friendToDelete[0];
+
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+            ContentValues values = new ContentValues ();
+            values.put(storageFriends.COLUMN_UUID, friend.getUUID());
+            values.put(storageFriends.COLUMN_SERVER, friend.getServer());
+            values.put(storageFriends.COLUMN_ALIAS, friend.getAlias());
+
+            long newRowId = db.insert(storageFriends.TABLE_FRIENDS, null, values );
+
+            if ( newRowId == -1 ) {
+                return friend;
+            } else {
+                return null;
+            }
+
+        }
+
+        @Override
+        protected void onPostExecute(miataruFriend deletedFriend) {
+            tasks.remove(this);
+            if (deletedFriend == null) {
+                Toast.makeText(MainActivity.getAppContext(), "Friend added", Toast.LENGTH_SHORT).show();
+                //friendList.remove(deletedFriend);
+            } else {
+                Toast.makeText(MainActivity.getAppContext(), "Friend could not be added", Toast.LENGTH_SHORT).show();
+                friendList.remove(deletedFriend);
+                callingTheCallbacks();
+            }
+        }
+    }
+
+    //
+    //
+    // AsyncTask to modify a friend
+    //
+    //
+    private class editInDB extends AsyncTask<miataruFriend, Void, miataruFriend> {
+        @Override
+        protected void onPreExecute() {
+            tasks.add(this);
+        }
+
+        @Override
+        protected miataruFriend doInBackground(miataruFriend... friendToChange) {
+            // Edit friend in DB
+            // If success return "null", if error return the friend to be rolledback
+            boolean allOK = true;
+
+            if (friendToChange.length == 0) {
+                return null;
+            }
+
+            miataruFriend friend = friendToChange[0];
+
+            Bundle originals = friend.getExtras();
+
+            String origUUID = originals.getString("OrigUUID",null);
+            if ( origUUID == null ) {
+                origUUID = friend.getUUID();
+            }
+
+            String origServer = originals.getString("OrigServer",null);
+            if ( origServer == null ) {
+                origServer = friend.getServer();
+            }
+
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+            String selection = storageFriends.COLUMN_UUID + " LIKE ? AND " + storageFriends.COLUMN_SERVER + " LIKE ?";
+            String[] selectionArgs = { origUUID, origServer };
+            String[] columns = { storageFriends.COLUMN_UUID };
+
+            Cursor c = db.query(
+                    storageFriends.TABLE_FRIENDS,
+                    columns,
+                    selection,
+                    selectionArgs,
+                    null,    // groupBy
+                    null,    // having
+                    null);   // orderBy
+
+            if ( c.getCount() == 1 ) {
+                // All is OK, change the values
+
+                ContentValues values = new ContentValues ();
+                values.put(storageFriends.COLUMN_UUID, friend.getUUID());
+                values.put(storageFriends.COLUMN_SERVER, friend.getServer());
+                values.put(storageFriends.COLUMN_ALIAS, friend.getAlias());
+
+                int count = db.update(
+                        storageFriends.TABLE_FRIENDS,
+                        values,
+                        selection,
+                        selectionArgs);
+
+
+                if ( count == 0 ) {
+                    // somehow we didn't change anything return the friend, we should do a full reread from DB
+                    allOK = false;
+                } else if ( count == 1 ) {
+                    // all ok, return success
+                    allOK = true;
+                } else {
+                    // How is it possible that we modified more than one line???
+                    // we should create an exception
+                    allOK = false;
+                }
+            } else {
+                // we found something strange, quit without changes. return null, we should do a full reread from DB
+                allOK = false;
+            }
+
+            if ( allOK ) {
+                originals.remove("OrigUUID");
+                originals.remove("OrigServer");
+                originals.remove("OrigAlias");
+                return null;
+            } else {
+                return friend;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(miataruFriend changedFriend) {
+            tasks.remove(this);
+            if (changedFriend == null) {
+                Toast.makeText(MainActivity.getAppContext(), "Friend changed", Toast.LENGTH_SHORT).show();
+                //friendList.remove(deletedFriend);
+            } else {
+                Toast.makeText(MainActivity.getAppContext(), "Friend could not be changed", Toast.LENGTH_SHORT).show();
+                Bundle oldData = changedFriend.getExtras();
+
+                if ( oldData.getString("OrigUUID",null) != null ) {
+                    changedFriend.setUUID(oldData.getString("OrigUUID"));
+                    oldData.remove("OrigUUID");
+                }
+                if ( oldData.getString("OrigServer",null) != null ) {
+                    changedFriend.setServer(oldData.getString("OrigServer"));
+                    oldData.remove("OrigServer");
+                }
+                if ( oldData.getString("OrigAlias",null) != null ) {
+                    changedFriend.setAlias(oldData.getString("OrigAlias"));
+                    oldData.remove("OrigAlias");
+                }
+
+                callingTheCallbacks();
+            }
+        }
+    }
+
 
     //
     //

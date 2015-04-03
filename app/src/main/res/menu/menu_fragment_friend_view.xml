@@ -15,14 +15,14 @@
         />
     <item android:id="@+id/edit_friend"
         android:icon="@drawable/ic_action_edit"
-        android:title="@string/showtext_edit_friend"
+        android:title="@string/showtext_fragment_friends_edit_friend"
         app:showAsAction="ifRoom"
         android:enabled="false"
         android:visible="true"
         />
     <item android:id="@+id/delete_friend"
         android:icon="@drawable/ic_action_remove"
-        android:title="@string/showtext_delete_friend"
+        android:title="@string/showtext_fragment_friends_delete_friend"
         app:showAsAction="ifRoom"
         android:enabled="false"
         android:visible="true"

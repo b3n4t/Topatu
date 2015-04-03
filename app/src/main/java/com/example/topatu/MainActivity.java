@@ -15,9 +15,14 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.SpinnerAdapter;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.UUID;
@@ -91,7 +96,9 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
         bar.setDisplayShowTitleEnabled(false);
         bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
         //ArrayAdapter<String> actionbar_adapter = new ArrayAdapter<String>(bar.getThemedContext(),R.layout.actionbar_list_item,fragment_titles);
-        SpinnerAdapter mySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.fragments, android.R.layout.simple_spinner_dropdown_item);
+        //SpinnerAdapter mySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.fragments, android.R.layout.simple_spinner_dropdown_item);
+        //bar.setListNavigationCallbacks(mySpinnerAdapter, this);
+        SpinnerAdapter mySpinnerAdapter = new myFragmentAdapter(context,fragment_titles);
         bar.setListNavigationCallbacks(mySpinnerAdapter, this);
 
         //
@@ -134,6 +141,10 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
         //
         uploadService = new Intent(context, serviceLocationUploader.class);
         uploadService.putExtra("StartedFrom", "MainActivity");
+
+        if ( ! isMyServiceRunning(serviceLocationUploader.class) ) {
+            onConfigChanged();
+        }
     }
 
     @Override
@@ -156,7 +167,10 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
         // Save the state of the fragments
         //
         // First save the state of the active fragment
-        prevFragment.onSaveInstanceState(fragSavedStates.get(prevFragmentNum));
+        try {
+            prevFragment.onSaveInstanceState(fragSavedStates.get(prevFragmentNum));
+        } catch (ArrayIndexOutOfBoundsException e ) {
+        }
         // Now save all in the bundle
         outState.putInt(STATE_NUM_FRAGMENTS,fragSavedStates.size());
         for (int x = 0;x < fragSavedStates.size(); x++) {
@@ -237,6 +251,70 @@ public class MainActivity extends ActionBarActivity implements ActionBar.OnNavig
         }
 
         return false;
+    }
+
+    //
+    //
+    // Fragment selecto spinner adapter
+    //
+    //
+    public class myFragmentAdapter extends ArrayAdapter<String> {
+        private Context context;
+        private String[] values;
+
+        public myFragmentAdapter(Context context, String[] values) {
+            super(context, R.layout.fragment_row_layout, values);
+            this.context = context;
+            this.values = values;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            View rowView = inflater.inflate(R.layout.fragment_row_layout, parent, false);
+            TextView textView = (TextView) rowView.findViewById(R.id.fragment_label);
+            ImageView imageView = (ImageView) rowView.findViewById(R.id.fragment_icon);
+            textView.setText(values[position]);
+            // Change the icon for Windows and iPhone
+            String s = values[position];
+            if (s.compareTo(context.getString(R.string.showtext_app_fragment_friends)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_person);
+            } else if (s.compareTo(context.getString(R.string.showtext_app_fragment_map)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_web_site);
+            } else if (s.compareTo(context.getString(R.string.showtext_app_fragment_settings)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_settings);
+            } else {
+                imageView.setImageResource(R.drawable.ic_action_remove);
+            }
+
+            //rowView.setPadding(rowView.getPaddingLeft(),0,rowView.getPaddingRight(),0);
+            rowView.setPadding(0,0,0,0);
+
+            return rowView;
+        }
+
+        public View getDropDownView(int position, View convertView, ViewGroup parent) {
+            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            View rowView = inflater.inflate(R.layout.fragment_row_layout, parent, false);
+            TextView textView = (TextView) rowView.findViewById(R.id.fragment_label);
+            ImageView imageView = (ImageView) rowView.findViewById(R.id.fragment_icon);
+            textView.setText(values[position]);
+            // Change the icon for Windows and iPhone
+            String s = values[position];
+            if (s.compareTo(context.getString(R.string.showtext_app_fragment_friends)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_person);
+            } else if (s.compareTo(context.getString(R.string.showtext_app_fragment_map)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_web_site);
+            } else if (s.compareTo(context.getString(R.string.showtext_app_fragment_settings)) == 0) {
+                imageView.setImageResource(R.drawable.ic_action_settings);
+            } else {
+                imageView.setImageResource(R.drawable.ic_action_remove);
+            }
+
+            //rowView.setPadding(0,0,0,0);
+
+            return rowView;
+        }
     }
 
 

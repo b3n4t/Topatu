@@ -4,9 +4,13 @@ import android.app.Fragment;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.v4.view.MenuItemCompat;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -42,15 +46,21 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
     private GoogleMap myMap = null;
     private Marker friendMarker = null;
     private TextView markerSpinner = null;
+    private TextView friendInfo = null;
     private Circle friendCircle = null;
     private miataruFriend activeFriend = null;
     private long activeFriendTimeStamp = 0;
     private Spinner friendName = null;
+    private Spinner chooseFriend;
+    private int chosenFriend = -1;
     private adapterFriendArray friendAdapter;
+    private Menu myMenu;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         if ( MainActivity.Debug > 2 ) { Log.v(LOGTAG, "fragmentMap - onCreateView"); }
+
+        setHasOptionsMenu(true);
 
         Bundle myParams;
         if ( savedInstanceState != null ) {
@@ -71,6 +81,8 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
 
         //MapsInitializer.initialize(inflater.getContext());
 
+        friendInfo = (TextView)view.findViewById(R.id.map_friend_data);
+
         myMapView = (MapView)view.findViewById(R.id.map_googlemap);
         myMapView.onCreate(myParams);
 
@@ -79,7 +91,7 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
 
         myMap.setOnCameraChangeListener(this);
         myMap.setOnMarkerClickListener(this);
-        myMap.setInfoWindowAdapter(new multiLineSpinner());
+        //myMap.setInfoWindowAdapter(new multiLineSpinner());
 
 
         myMap.setMyLocationEnabled(false);
@@ -97,29 +109,25 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         friendName = (Spinner)view.findViewById(R.id.map_friend_show);
         // set adapter to spinner
         friendAdapter = new adapterFriendArray(inflater.getContext(),persistentFriends.getFriends());
-        friendName.setAdapter(friendAdapter);
+        //friendName.setAdapter(friendAdapter);
 
         if ( myParams != null ) {
             if (myParams.containsKey(SAVESTATE_SPINNER_SELECTION)) {
+                chosenFriend = myParams.getInt(SAVESTATE_SPINNER_SELECTION);
                 friendName.setSelection(myParams.getInt(SAVESTATE_SPINNER_SELECTION));
                 if (MainActivity.Debug > 10) {
-                    Log.v(LOGTAG, "fragmentMap - Restoring selected friend " + myParams.getInt(SAVESTATE_SPINNER_SELECTION) + " from list of " + persistentFriends.getFriends().size());
+                    Log.v(LOGTAG, "fragmentMap - Restoring selected friend " + chosenFriend + " from list of " + persistentFriends.getFriends().size());
                 }
                 if (MainActivity.Debug > 10) {
-                    Log.v(LOGTAG, "***** Restoring selected friend num " + myParams.getInt(SAVESTATE_SPINNER_SELECTION));
+                    Log.v(LOGTAG, "***** Restoring selected friend num " + chosenFriend);
                 }
             } else {
                 if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Could not restore selected friend num, SAVESTATE_SPINNER_SELECTION doesn't exist" ); }
             }
         } else {
-            if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Could not restore selected friend num, myParams is empty" ); }
+            if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG, "***** Could not restore selected friend num, myParams is empty"); }
         }
         friendName.setOnItemSelectedListener(this);
-        //friendName.setBackgroundColor(Color.TRANSPARENT);
-        //Drawable dr = friendName.getBackground();
-        //dr.setAlpha(0xF0);
-        //dr.setAlpha(255);
-        //friendName.setBackgroundDrawable(dr);
 
         return view;
     }
@@ -134,9 +142,28 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         super.onSaveInstanceState(outState);
         if ( myMapView != null ) { myMapView.onSaveInstanceState(outState); }
         if ( friendName != null ) {
-            outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition());
+            //outState.putInt(SAVESTATE_SPINNER_SELECTION,friendName.getSelectedItemPosition());
+            outState.putInt(SAVESTATE_SPINNER_SELECTION,chooseFriend.getSelectedItemPosition());
             if ( MainActivity.Debug > 10 ) {  Log.v(LOGTAG,"***** Saving selected friend num " + friendName.getSelectedItemPosition() ); }
         }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.menu_fragment_map_view, menu);
+        myMenu = menu;
+
+        MenuItem menuItem= menu.findItem(R.id.choose_friend);
+        chooseFriend = (Spinner) MenuItemCompat.getActionView(menuItem);
+        chooseFriend.setAdapter(friendAdapter);
+        chooseFriend.setOnItemSelectedListener(this);
+        if ( chosenFriend != -1 ) {
+            chooseFriend.setSelection(chosenFriend);
+        }
+
+
+        Log.v(LOGTAG,"fragmentMap - onCreateOptionsMenu");
     }
 
     //
@@ -217,10 +244,13 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
 
         activeFriendTimeStamp = activeFriend.getTimeStamp();
 
+        if ( friendInfo != null ) {
+            friendInfo.setText(activeFriend.getLongDescription());
+        }
         if ( friendMarker != null ) {
             friendMarker.setPosition(activeFriend.getLatLng());
             friendMarker.setTitle(activeFriend.getShowText());
-            friendMarker.setSnippet(activeFriend.getLongDescription());
+            //friendMarker.setSnippet(activeFriend.getLongDescription());
         }
         if ( friendCircle != null ) {
             friendCircle.setCenter(activeFriend.getLatLng());
@@ -262,48 +292,54 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
             activeFriendTimeStamp = 0;
         }
 
-        Log.v(LOGTAG,"Friend selected from spinner: " + activeFriend.getShowText());
 
-        if ( myMap != null ) {
-            if ( activeFriend != null && activeFriend.hasLocation() ) {
+        if ( activeFriend != null ) {
+            if ( friendInfo != null ) {
+                friendInfo.setText(activeFriend.getLongDescription());
+
+            }
+
+            Log.v(LOGTAG, "Friend selected from spinner: " + activeFriend.getShowText());
+
+            if ( myMap != null && activeFriend.hasLocation() ) {
                 //Log.v(LOGTAG, "*** Creating marker and circle");
                 if (friendMarker == null) {
-                    friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
-                    friendMarker.setDraggable(false);
-                }
+                        friendMarker = myMap.addMarker(activeFriend.getMarkerOptions());
+                        friendMarker.setDraggable(false);
+                    }
+                    if (friendMarker != null) {
+                        friendMarker.setVisible(false);
+                        friendMarker.setPosition(activeFriend.getLatLng());
+                        friendMarker.setTitle(activeFriend.getShowText());
+                        //friendMarker.setSnippet(activeFriend.getShowText());
+                        friendMarker.setVisible(true);
+                    }
+                    if (friendCircle == null) {
+                        friendCircle = myMap.addCircle(activeFriend.getCircleOptions());
+                    }
+                    if (friendCircle != null) {
+                        friendCircle.setVisible(false);
+                        friendCircle.setCenter(activeFriend.getLatLng());
+                        friendCircle.setRadius(activeFriend.getAccuracy());
+                        friendCircle.setVisible(true);
+                    }
+
+                    // Center the camera in the selected friend
+                    //Log.v(LOGTAG, "*** Zooming the camera");
+                    try {
+                        cameraTriggered = true;
+                        myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), DEFAULT_ZOOM));
+                    } catch (IllegalStateException e) {
+                        // We could not change the camera of the Map
+                        if (MainActivity.Debug > 2) {
+                            Log.e(LOGTAG, "GoogleMap IllegalStateException " + e.getMessage());
+                        }
+                    }
+                } else {
                 if (friendMarker != null) {
                     friendMarker.setVisible(false);
-                    friendMarker.setPosition(activeFriend.getLatLng());
-                    friendMarker.setTitle(activeFriend.getShowText());
-                    friendMarker.setSnippet(activeFriend.getLongDescription());
-                    friendMarker.setVisible(true);
-                }
-                if (friendCircle == null) {
-                    friendCircle = myMap.addCircle(activeFriend.getCircleOptions());
                 }
                 if (friendCircle != null) {
-                    friendCircle.setVisible(false);
-                    friendCircle.setCenter(activeFriend.getLatLng());
-                    friendCircle.setRadius(activeFriend.getAccuracy());
-                        friendCircle.setVisible(true);
-                }
-
-                // Center the camera in the selected friend
-                //Log.v(LOGTAG, "*** Zooming the camera");
-                try {
-                    cameraTriggered = true;
-                    myMap.animateCamera(CameraUpdateFactory.newLatLngZoom(activeFriend.getLatLng(), DEFAULT_ZOOM));
-                } catch (IllegalStateException e) {
-                    // We could not change the camera of the Map
-                    if (MainActivity.Debug > 2) {
-                        Log.e(LOGTAG, "GoogleMap IllegalStateException " + e.getMessage());
-                    }
-                }
-            } else {
-                if ( friendMarker != null ) {
-                    friendMarker.setVisible(false);
-                }
-                if ( friendCircle != null ) {
                     friendCircle.setVisible(false);
                 }
             }
@@ -397,15 +433,23 @@ public class fragmentMap extends Fragment implements persistentFriends.friendEve
         }
 
         public View getInfoWindow(Marker marker) {
+            /*
             markerSpinner = mymarkerview;
             mymarkerview.setBackgroundResource(R.drawable.layout_rounded_bg);
             mymarkerview.setTextColor(getResources().getColor(R.color.topatu_textcolor));
             mymarkerview.setText(marker.getSnippet());
 
             return mymarkerview;
+            */
+            return null;
         }
 
         public View getInfoContents(Marker marker) {
+            /*
+            TextView v = new TextView(getActivity());
+            v.setText(marker.getSnippet());
+            return v;
+            */
             return null;
         }
 
